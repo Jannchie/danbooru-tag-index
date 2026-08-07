@@ -483,9 +483,21 @@ const BUILTIN = [
     name: { zh_hans: "VTuber 事务所", zh_hant: "VTuber 事務所", ja: "VTuber事務所", en: "VTuber agencies", ko: "VTuber 소속사" },
   },
   {
-    id: "evergreen", tags: ["touhou", "fate_(series)", "pokemon", "vocaloid"],
+    // Rem outdrew the actual heroine three to one in 2016 and Emilia is ahead now.
+    id: "rem-emilia", versus: true, tags: ["rem_(re:zero)", "emilia_(re:zero)"],
+    metric: "rel", scale: "lin", smooth: 6, range: 120,
+  },
+  {
+    // Dead level on lifetime posts -- 29,499 against 29,614 -- but Homura peaks
+    // three years later, on Rebellion rather than the series.
+    id: "madoka-homura", versus: true, tags: ["kaname_madoka", "akemi_homura"],
+    metric: "rel", scale: "lin", smooth: 6, range: 0,
+  },
+  {
+    // Smoothed to 12 months because both sit under 20 posts a month, where a raw
+    // month is +-80% and the two lines would cross on noise alone.
+    id: "naruto-sasuke", versus: true, tags: ["uzumaki_naruto", "uchiha_sasuke"],
     metric: "rel", scale: "lin", smooth: 12, range: 0,
-    name: { zh_hans: "长青 IP", zh_hant: "長青 IP", ja: "定番シリーズ", en: "The evergreens", ko: "스테디셀러" },
   },
   {
     // tsundere and yandere peak in 2010-2011 and are a tenth of that now, while
@@ -1260,8 +1272,10 @@ function presets() {
 /** A saved set is named by its members, so the name follows the UI language
  *  instead of freezing whatever language it was saved in. */
 function presetLabel(preset) {
-  if (!preset.mine) return preset.name[state.lang] || preset.name.en;
-  return memberNames(preset).slice(0, 2).join(" · ") || "—";
+  if (preset.name) return preset.name[state.lang] || preset.name.en;
+  const names = memberNames(preset);
+  if (preset.versus) return names.join(" vs ");
+  return names.slice(0, 2).join(" · ") || "—";
 }
 
 function memberNames(preset) {
@@ -1277,7 +1291,8 @@ function renderPresets() {
   for (const preset of presets()) {
     const row = el("div", "preset");
     const go = el("button", "preset-go");
-    go.append(el("b", "", presetLabel(preset)), el("span", "", memberNames(preset).join(" · ")));
+    const detail = preset.versus ? preset.tags.join(" · ") : memberNames(preset).join(" · ");
+    go.append(el("b", "", presetLabel(preset)), el("span", "", detail));
     go.onclick = () => applyPreset(preset);
 
     const del = el("button", "preset-del");
