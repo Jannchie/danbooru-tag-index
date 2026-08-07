@@ -189,9 +189,9 @@
   .s .x { border: 0; background: none; color: var(--text-muted); cursor: pointer; padding: 0; flex: none; display: flex; align-items: center; }
   .s .x svg { width: 13px; height: 13px; }
   .s .x:hover { color: var(--text-primary); }
-  /* The legend is denser than the suggest list, so the badge sheds its border
-     and keeps only the muted colour to stay out of the value's way. */
-  .s .cat { font-size: 10.5px; color: var(--text-muted); flex: none; }
+  /* Same badge as the suggest list, one step quieter: in the legend it sits
+     next to the value, which is what the eye is here for. */
+  .s .cat { color: var(--text-muted); }
   .empty { color: var(--text-muted); font-size: 12.5px; padding: 10px 6px; }
 
   /* ---- boot ---- */
@@ -769,9 +769,15 @@ const unitLabel = () => t(state.metric === "rel" ? "relUnit" : state.metric === 
 
 function fmtValue(v) {
   if (v === 0) return "0";
-  if (state.metric === "posts") return v >= 1000 ? fmtInt.format(Math.round(v)) : v.toFixed(v >= 10 ? 0 : 1);
-  if (state.metric === "rel") return v >= 10 ? v.toFixed(0) : v >= 1 ? v.toFixed(2) : v.toFixed(3);
-  return v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2);
+  const text = state.metric === "posts"
+    ? (v >= 1000 ? fmtInt.format(Math.round(v)) : v.toFixed(v >= 10 ? 0 : 1))
+    : state.metric === "rel"
+      ? (v >= 10 ? v.toFixed(0) : v >= 1 ? v.toFixed(2) : v.toFixed(3))
+      : (v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2));
+  // Anything under the last decimal place formats as "0.000". A log axis that
+  // reaches 1e-8 -- which a tag with three posts a month does -- then prints
+  // eight identical labels, which is worse than having no axis at all.
+  return parseFloat(text) === 0 ? v.toExponential(0) : text;
 }
 
 /** Axis ticks are abbreviated: they sit inside the plot and must stay small. */
