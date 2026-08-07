@@ -258,10 +258,19 @@ def load_other_names(path: Path, wanted: set[str]) -> dict[str, list[str]]:
 
     The pool covers general tags too, which no name map reaches -- and those are
     exactly the ones that need alias search the most.
+
+    Missing is a hard failure, not a warning. Without the pool 11,634 tags lose
+    multilingual search while every count the build prints stays plausible and the
+    run goes green -- which is exactly how a CI glob that swept
+    `wiki_other_names.json` in with `*_names.json` shipped a degraded bundle once
+    already. Build without translations with `--no-i18n` if that is the intent.
     """
     if not path.exists():
-        print(f"  WARNING: {path.name} missing -- tags will only be searchable by name")
-        return {}
+        raise SystemExit(
+            f"alias pool not found: {path}\n"
+            "Run scripts/export_wiki_aliases.py (stage 1), point --wiki-aliases at it, "
+            "or pass --no-i18n to build without translations."
+        )
     data = json.loads(path.read_text(encoding="utf-8"))
     out = {tag: [str(n) for n in names if n] for tag, names in data.items() if tag in wanted and names}
     print(f"  {path.name}: alias pools for {len(out):,} tags")

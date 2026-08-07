@@ -61,9 +61,12 @@ jobs:
           fi
           mkdir -p data/index
           gh release download data-latest --dir data/index --clobber
-          # export_tag_translations.py writes these next to the committed
-          # translation data, so put them back where build_name_map expects them.
-          mv data/index/*_names.json data/translations/
+          # Named individually, not `*_names.json`: that glob also matches
+          # wiki_other_names.json, which belongs in data/index. Moving it away
+          # cost 11,634 tags their multilingual search on a green build.
+          for f in character_names.json copyright_names.json artist_names.json; do
+            mv "data/index/$f" data/translations/
+          done
           ls -la data/index data/translations
 
       - name: Build name maps
