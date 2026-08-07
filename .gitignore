@@ -11,6 +11,7 @@ data/*.duckdb*
 data/translations/*_names.json
 data/translations/*_name_map.json
 data/translations/_zh_work/
+data/translations/_char_work/
 site/
 logs/
 

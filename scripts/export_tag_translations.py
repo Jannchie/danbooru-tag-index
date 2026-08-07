@@ -76,6 +76,27 @@ def detect_han_lang(name: str) -> str:
 
 
 def classify(name: str, overrides: dict[str, list[str]]) -> list[str]:
+    """overrides 是替换,不是补充 —— 试过改成并集,不行。
+
+    已知它会判错:`han_language_overrides["黑暗之魂"] == ["ja"]`,而那是中文名。被判成
+    ja 的汉字名会从中文桶里消失,于是更差的候选赢下 zh_hant,简体再由它转换而来。
+    Dark Souls 就是这么变成「黑暗灵魂」的(现由 zh_supplement 单点纠正)。
+
+    自然的修法是 `overrides ∪ {detect_han_lang(name)}`,让汉字名至少留在确定性检测
+    的那个桶里。实测(2026-08-07,对 36k 有别名池的 tag):2,396 个 tag-语言组合受影响,
+    1,940 个「纯新增」、456 个首选被改动 —— 而两类都是一半好一半坏。
+    `akagi_(kancolle)` 从「赤賀」(舰船配对,不是名字)修成「赤城」是赚的;
+    `akame` 从「赤瞳」(正确译名)变成「赤目」是亏的。纯新增里混着
+    `ado_(utaite) -> Ado誕生日`(生日 tag)、`18trip -> 18TRI腐`(同人黑话)、
+    `aak_(arknights) -> 阿`(截断)、`adachi_sakura -> 安達`(只有姓)。
+    错的名字比没有名字更糟,所以掷硬币的改动不算修复。
+
+    并集还有个系统性偏差:新增几乎全落进 zh_hant,因为 detect_han_lang 对简繁同形的
+    串一律兜底 zh_hant。「橙汁」「呆毛」「深空之眼」都不是繁体。
+
+    真正的限制在别名池本身 —— 它是为召回率建的,不保证等价。要纠正个别显示名,用
+    zh_supplement.json(它能覆盖而不只是填空);要成批纠正,得有人审。
+    """
     if HANGUL_RE.search(name):
         return ["ko"]
     if KANA_RE.search(name):
