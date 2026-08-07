@@ -338,6 +338,9 @@
        the name already identify the series, and the tag list in the sidebar
        says which category each preset is. */
     .s .sub { display: none; }
+    /* The "max 8" notice is a flex item here too. Without these it is squeezed
+       to a few characters wide, wraps, and single-handedly triples the row. */
+    .series .empty { flex: none; white-space: nowrap; padding: 0 4px; font-size: 11px; }
     .plot { padding: 4px 3px 2px; }
 
     /* A time series wants to be wider than tall. Left to fill a portrait phone
