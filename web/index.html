@@ -453,11 +453,10 @@ const BUILTIN = [
   {
     // Peaks at 2018, 2022, 2023 and two still climbing in 2026 -- the point is
     // the handover, so the line-up spans the whole run rather than sampling the
-    // current top four. 10 years: FGO launched in 2015 and anything earlier is
-    // empty axis.
+    // current top four.
     id: "gacha",
     tags: ["fate/grand_order", "genshin_impact", "blue_archive", "umamusume", "arknights"],
-    metric: "rel", scale: "lin", smooth: 6, range: 120,
+    metric: "rel", scale: "lin", smooth: 6, range: 0,
     name: { zh_hans: "手游时代", zh_hant: "手遊時代", ja: "ソシャゲ時代", en: "The gacha era", ko: "가챠 시대" },
   },
   {
@@ -478,6 +477,9 @@ const BUILTIN = [
     name: { zh_hans: "历代霸权番", zh_hant: "歷代霸權番", ja: "覇権アニメの系譜", en: "Breakout anime by era", ko: "시대별 패권 애니" },
   },
   {
+    // The only preset not on the full run. hololive's first tagged post is 2018,
+    // so 59% of the axis would be empty -- past the point where the blank half
+    // stops reading as "this did not exist yet" and starts reading as a bug.
     id: "vtuber", tags: ["hololive", "nijisanji"],
     metric: "rel", scale: "lin", smooth: 6, range: 120,
     name: { zh_hans: "VTuber 事务所", zh_hant: "VTuber 事務所", ja: "VTuber事務所", en: "VTuber agencies", ko: "VTuber 소속사" },
