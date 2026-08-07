@@ -18,37 +18,23 @@ import sys
 from pathlib import Path
 from typing import NamedTuple
 
-import opencc
-
+from _hanzi import is_simplified
 from _paths import TRANSLATIONS_DIR
-from translate_prep import WORK_DIRNAME
+from translate_prep import REVIEW_DIRNAME, WORK_DIRNAME
 
 HAN = re.compile(r"[㐀-䶿一-鿿豈-﫿]")
 KANA = re.compile(r"[぀-ヿㇰ-ㇿ]")
-# OpenCC 的 jp2t 覆盖绝大多数日文新字体(测了 24 个字形只漏 1 个),这里补它的漏网:
-# 姫 中文应作「姬」(jp2t 原样返回),々 是日文叠字符号,现代中文不用。
-JP_ONLY = re.compile(r"[姫々]")
 MAX_LEN = 60
 MANUAL_FILE = "zh_manual.json"
-
-_jp2t = opencc.OpenCC("jp2t")  # 日文新字体 → 繁体
-_t2s = opencc.OpenCC("t2s")  # 繁体 → 简体
-
-
-def not_simplified(text: str) -> bool:
-    """这串是否不是规范简体中文(掺了日文新字体,或整个是繁体)。
-
-    单看 jp2t 有变化不行:日文新字体和中文简化字大量重合(宝/実→寶/實 都会变),那样
-    「精灵宝可梦」会被误判成日文。改看**往返**能否还原 —— 简体字 jp2t 转成繁体再 t2s
-    转回来还是自己(宝→寶→宝),而日文专用字形不会(黒→黑→黑≠黒,剣→劍→剑≠剣)。
-    顺带把繁体也拦下:我们只要简体,繁体由程序转换得出。
-    """
-    return _t2s.convert(_jp2t.convert(text)) != text
-
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Merge LLM translation batches into zh_supplement.json.")
     parser.add_argument("--dir", type=str, default=str(TRANSLATIONS_DIR))
+    parser.add_argument(
+        "--review",
+        action="store_true",
+        help="合并审查批次(_zh_review)。答案与现有名字相同视为确认,不写入任何东西。",
+    )
     return parser.parse_args()
 
 
@@ -63,13 +49,65 @@ def reject(tag: str, zh: str, anchors: dict) -> str | None:
         return "no-han"
     if KANA.search(zh):
         return "contains-kana"
-    if JP_ONLY.search(zh) or not_simplified(zh):
+    if not is_simplified(zh):
         return "not-simplified"
-    if zh == (anchors.get("ja") or "").strip():
-        return "same-as-japanese"
+    # 不检查「和日文名相同」。中日共用汉字名是常态(中野二乃、魈、橙 在两种语言里
+    # 都是同一串),而 wiki 的 ja 桶里又混着被 han_language_overrides 误判成日文的
+    # 中文名 —— 两件事叠起来,这条检查专门拒绝那些修复误判的正确答案:实测 24 条,
+    # 包括为了守住「黒森峰女学园」(另一部作品的学校名)而丢掉「赤星小梅」,为了守住
+    # 「恋柱」(称号)而丢掉「甘露寺蜜璃」。真正未翻译的日文串由 KANA 和
+    # is_simplified 拦下,不需要这条。
     if zh.lower() == tag.replace("_", " "):
         return "same-as-tag"
     return None
+
+
+CONFIRMED = "confirmed"
+
+
+def judge(tag: str, zh: str, anchors: dict, review: bool) -> str | None:
+    """把一个答案归类:CONFIRMED、None(采纳)、或拒绝理由。
+
+    审查模式下答案等于现有名字就是「确认」,必须**不写入任何东西**。把确认也写进
+    zh_supplement 会把「别名池随手挑的」提升成「审过的翻译」——它的可信度并没有提高,
+    而下一轮审查再也找不到它们了(prep 靠「不在 supplement 里」来判定未审查)。
+    """
+    if review and isinstance(zh, str) and zh.strip() == (anchors.get("current_zh") or "").strip():
+        return CONFIRMED
+    return reject(tag, zh, anchors)
+
+
+def collisions(answers: dict[str, str], inputs: dict[str, dict], existing: dict[str, str]) -> dict[str, list[str]]:
+    """新名字撞上别的 tag、而旧名字没撞 —— 只报告,不拦。
+
+    审查会被要求去掉「训练员(赛马娘)」这类作品后缀,对只有一个 Trainer 的情况是对的。
+    但当同名的兄弟 tag 存在时,去掉限定就让两条曲线在图例上完全一样:
+    `shameimaru_aya_(newsboy)` 本来叫「铃奈庵文」,改成「射命丸文」之后和本体
+    `shameimaru_aya` 分不开了 —— 那是净损失。
+
+    不自动回退,因为有一半的撞名是对的:`scaramouche_(genshin_impact)` 和
+    `scaramouche_(harbinger)_(genshin_impact)` 是同一个角色,本就该同名;
+    `dante_(devil_may_cry)` 和 `dante_(limbus_company)` 是两个都叫但丁的人。
+    区分这两种要看 tag 之间是不是变体关系,机械上判不出来。
+    """
+    final = dict(existing)
+    for tag, zh in answers.items():
+        final[tag] = zh
+    owners: dict[str, list[str]] = {}
+    for tag, zh in final.items():
+        owners.setdefault(zh, []).append(tag)
+
+    out: dict[str, list[str]] = {}
+    for tag, zh in answers.items():
+        before = (inputs.get(tag) or {}).get("current_zh")
+        others = [t for t in owners.get(zh, []) if t != tag]
+        if not others or zh == before:
+            continue
+        # 旧名字本来就撞的,不算这次改出来的。
+        if before and len([t for t in owners.get(before, []) if t != tag]):
+            continue
+        out[tag] = others
+    return out
 
 
 class Batches(NamedTuple):
@@ -117,7 +155,7 @@ def main() -> None:
 
     args = parse_args()
     base = Path(args.dir)
-    work = base / WORK_DIRNAME
+    work = base / (REVIEW_DIRNAME if args.review else WORK_DIRNAME)
     if not work.exists():
         raise SystemExit(f"no work dir at {work} -- run translate_prep.py first")
 
@@ -127,12 +165,16 @@ def main() -> None:
     accepted: dict[str, str] = {}
     rejected: dict[str, list[str]] = {}
     unknown = 0
+    confirmed = 0
     for tag, zh in batch.answers.items():
         anchors = inputs.get(tag)
         if anchors is None:
             unknown += 1
             continue
-        why = reject(tag, zh, anchors)
+        why = judge(tag, zh, anchors, args.review)
+        if why == CONFIRMED:
+            confirmed += 1
+            continue
         if why:
             rejected.setdefault(why, []).append(f"{tag}={zh}")
         else:
@@ -141,6 +183,9 @@ def main() -> None:
     # 人工核实过的修正。批次输出是可重跑的产物,手改会被下次合并覆盖;而且有些错的
     # tag 根本不在批次里(prep 只挑没有中文名的,像 dark_souls_(series) 那样「有名字
     # 但名字是错的」永远进不来)。所以单独一个文件,最后应用,不受批次成员检查限制。
+    # 两遍都应用人工修正,而且放在最后 —— 它比 LLM 的答案权威。曾经在审查模式下跳过它,
+    # 因为 reject() 里有条检查依赖批次锚点、缺锚点就虚报失败;那条检查(same-as-japanese)
+    # 已经删了,剩下的检查都只看值本身,所以这个特例没有理由再存在。
     manual_path = base / MANUAL_FILE
     manual_applied = 0
     if manual_path.exists():
@@ -164,6 +209,11 @@ def main() -> None:
 
     print(f"zh_supplement.json: {len(merged)} names ({len(accepted)} from this merge, {manual_applied} hand-verified)")
     print(f"  batches done: {len(batch.done)}/{len(batch.expected)}   asked for {len(inputs)} tags, answered {len(batch.answers)}")
+    if args.review:
+        # 确认率是这一遍的主要产出:它量化了别名池挑出来的名字有多大比例本来就对。
+        judged = confirmed + len(accepted) + sum(len(v) for v in rejected.values())
+        rate = confirmed * 100 // max(judged, 1)
+        print(f"  reviewed: {confirmed} confirmed as-is ({rate}%), {len(accepted)} corrected")
     for why, items in sorted(rejected.items()):
         print(f"  REJECTED {why}: {len(items)} -> {', '.join(items[:6])}")
     if unknown:
@@ -172,6 +222,12 @@ def main() -> None:
         print(f"  REVIEW {len(dupes)} Chinese names used by more than one tag:")
         for zh, tags in list(dupes.items())[:10]:
             print(f"    {zh} -> {tags}")
+    if args.review:
+        clashes = collisions(accepted, inputs, {t: (v or {}).get("current_zh", "") for t, v in inputs.items()})
+        if clashes:
+            print(f"  REVIEW {len(clashes)} corrections now clash with another tag (was distinct before):")
+            for tag, others in list(clashes.items())[:15]:
+                print(f"    {tag} = {accepted[tag]}  <-> {', '.join(others)}")
     missing = sorted((batch.expected - batch.done) | set(batch.corrupt))
     if missing:
         print(f"  MISSING/corrupt batches ({len(missing)}): {missing}")

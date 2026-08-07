@@ -27,6 +27,14 @@ CATEGORY_NAME = {1: "artist", 3: "copyright", 4: "character"}
 # 音译画师笔名的收益远低于出错的代价。
 WANTED_CATEGORIES = (3, 4)
 WORK_DIRNAME = "_zh_work"
+# 审查的批次输出必须和补全的分开存放。两遍的 out_NNNN.json 同名,共用一个目录会让
+# 后跑的那遍读到前一遍的答案,而那些答案回答的是另一个问题。
+REVIEW_DIRNAME = "_zh_review"
+
+# 已经过某一遍审查、不需要再看的来源。*_official.json 是 LLM 从 wiki 候选里挑的,
+# zh_supplement/zh_manual 是翻译或人工核过的。剩下的中文名全是启发式从别名池里取的
+# 第一个候选 —— 没有任何人或模型看过它们对不对。
+REVIEWED_SOURCES = ("copyright_official.json", "character_official.json", "zh_supplement.json", "zh_manual.json")
 
 
 def parse_args() -> argparse.Namespace:
@@ -35,11 +43,33 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dir", type=str, default=str(TRANSLATIONS_DIR))
     parser.add_argument("--min-post-count", type=int, default=1000, help="Only tags at least this popular.")
     parser.add_argument("--batch", type=int, default=BATCH)
+    parser.add_argument(
+        "--review",
+        action="store_true",
+        help="改为审查已有但未经审查的中文名(启发式从别名池取的),而不是补缺失的。",
+    )
     return parser.parse_args()
 
 
-def load_targets(index_dir: Path, base: Path, min_post_count: int) -> list[tuple[str, dict]]:
-    """Tags in a wanted category, popular enough to matter, with no Chinese name yet."""
+def reviewed_tags(base: Path) -> set[str]:
+    out: set[str] = set()
+    for name in REVIEWED_SOURCES:
+        path = base / name
+        if not path.exists():
+            continue
+        data = json.loads(path.read_text(encoding="utf-8"))
+        for tag, value in data.items():
+            # *_official.json 的值是 {lang: name};supplement/manual 的值是一个字符串。
+            if isinstance(value, dict):
+                if value.get("zh_hans") or value.get("zh_hant"):
+                    out.add(tag)
+            elif value:
+                out.add(tag)
+    return out
+
+
+def load_targets(index_dir: Path, base: Path, min_post_count: int, review: bool = False) -> list[tuple[str, dict]]:
+    """符合类目、够热门的 tag:默认取「还没有中文名」的,--review 取「有但没人看过」的。"""
     con = duckdb.connect()
     rows = con.execute(
         f"""
@@ -62,10 +92,16 @@ def load_targets(index_dir: Path, base: Path, min_post_count: int) -> list[tuple
         if names.exists():
             pools.update(json.loads(names.read_text(encoding="utf-8")))
 
+    already_reviewed = reviewed_tags(base) if review else set()
+
     targets: list[tuple[str, dict]] = []
     for name, category, post_count in rows:
         known = maps.get(name, {})
-        if known.get("zh_hans"):
+        if review:
+            # 有中文名、且不来自任何审查过的来源 —— 也就是启发式从别名池挑的那批。
+            if not known.get("zh_hans") or name in already_reviewed:
+                continue
+        elif known.get("zh_hans"):
             continue
         pool = pools.get(name, {})
         aliases = [n for lang, values in pool.items() if lang != "en" for n in values]
@@ -76,6 +112,10 @@ def load_targets(index_dir: Path, base: Path, min_post_count: int) -> list[tuple
             "ja": known.get("ja") or "",
             "aliases": aliases[:12],
         }
+        if review:
+            # 待判定的那个名字。放进去才能问「这个对不对」而不是「这个叫什么」——
+            # 后者会让模型重新翻一遍,把本来对的也换掉。
+            item["current_zh"] = known.get("zh_hans", "")
         targets.append((name, {k: v for k, v in item.items() if v != "" and v != []}))
     return targets
 
@@ -83,9 +123,9 @@ def load_targets(index_dir: Path, base: Path, min_post_count: int) -> list[tuple
 def main() -> None:
     args = parse_args()
     base = Path(args.dir)
-    targets = load_targets(Path(args.index_dir), base, args.min_post_count)
+    targets = load_targets(Path(args.index_dir), base, args.min_post_count, args.review)
 
-    work = base / WORK_DIRNAME
+    work = base / (REVIEW_DIRNAME if args.review else WORK_DIRNAME)
     work.mkdir(parents=True, exist_ok=True)
     # 清掉旧输入(保留 out_*.json 以便续跑)
     for stale in work.glob("in_*.json"):
@@ -102,7 +142,8 @@ def main() -> None:
         by_category[item["category"]] = by_category.get(item["category"], 0) + 1
         if item.get("ja") or item.get("aliases"):
             grounded += 1
-    print(f"tags missing a Chinese name (post_count >= {args.min_post_count}): {len(targets)}")
+    what = "unreviewed Chinese names" if args.review else "tags missing a Chinese name"
+    print(f"{what} (post_count >= {args.min_post_count}): {len(targets)}")
     print(f"  by category: {by_category}")
     print(f"  with a Japanese name or alias to anchor on: {grounded} ({grounded * 100 // max(len(targets), 1)}%)")
     print(f"  batches: {n_batches} (batch={args.batch}) -> {work}")

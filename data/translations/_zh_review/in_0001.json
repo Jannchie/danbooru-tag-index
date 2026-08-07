@@ -1,0 +1,1214 @@
+{
+ "aki_minoriko": {
+  "category": "character",
+  "posts": 6520,
+  "en": "Aki Minoriko",
+  "ja": "秋穣子",
+  "aliases": [
+   "秋穣子",
+   "秋穰子",
+   "아키미노리코"
+  ],
+  "current_zh": "秋穰子"
+ },
+ "osawa_rurino": {
+  "category": "character",
+  "posts": 6429,
+  "en": "Osawa Rurino",
+  "ja": "大沢瑠璃乃",
+  "aliases": [
+   "大沢瑠璃乃"
+  ],
+  "current_zh": "大泽瑠璃乃"
+ },
+ "mizi_(alien_stage)": {
+  "category": "character",
+  "posts": 6404,
+  "en": "Mizi",
+  "ja": "ミジ",
+  "aliases": [
+   "미지",
+   "美智",
+   "ミジ"
+  ],
+  "current_zh": "美智"
+ },
+ "dio_brando": {
+  "category": "character",
+  "posts": 6348,
+  "en": "Dio Brando",
+  "ja": "ディオ・ブランドー",
+  "aliases": [
+   "ディオ・ブランドー",
+   "迪奥·布兰度"
+  ],
+  "current_zh": "迪奥·布兰度"
+ },
+ "kitagawa_marin": {
+  "category": "character",
+  "posts": 6345,
+  "en": "Kitagawa Marin",
+  "ja": "海夢",
+  "aliases": [
+   "喜多川海夢",
+   "海夢",
+   "喜多川海梦"
+  ],
+  "current_zh": "喜多川海梦"
+ },
+ "amami_haruka": {
+  "category": "character",
+  "posts": 6319,
+  "en": "Amami Haruka",
+  "ja": "天海春香",
+  "aliases": [
+   "天海春香"
+  ],
+  "current_zh": "天海春香"
+ },
+ "ash_ketchum": {
+  "category": "character",
+  "posts": 6264,
+  "en": "Ash Ketchum",
+  "ja": "サトシ",
+  "aliases": [
+   "サトシ(アニポケ)",
+   "サトシ",
+   "サトシ(トレーナー)",
+   "サトゴウ",
+   "サトリエ",
+   "サトマオ",
+   "サトセレ",
+   "シゲサト",
+   "サトシゲ",
+   "サトヒカ",
+   "小智(宝可梦)"
+  ],
+  "current_zh": "小智(宝可梦)"
+ },
+ "asashio_(kancolle)": {
+  "category": "character",
+  "posts": 6249,
+  "en": "Asashio",
+  "ja": "朝潮",
+  "aliases": [
+   "朝潮(艦隊これくしょん)",
+   "朝潮(艦これ)",
+   "朝潮"
+  ],
+  "current_zh": "朝潮"
+ },
+ "xiao_(genshin_impact)": {
+  "category": "character",
+  "posts": 6193,
+  "en": "Xiao",
+  "ja": "魈",
+  "aliases": [
+   "魈",
+   "魈(原神)",
+   "护法夜叉",
+   "金鹏"
+  ],
+  "current_zh": "金鹏"
+ },
+ "sonic_the_hedgehog": {
+  "category": "character",
+  "posts": 6135,
+  "en": "Sonic The Hedgehog",
+  "ja": "ソニック",
+  "aliases": [
+   "ソニック",
+   "ソニエミ",
+   "ソナミー",
+   "シャソニ",
+   "ソニナコ",
+   "ソニブレ",
+   "ソニシル",
+   "ソニテイ",
+   "青粉",
+   "소닉파란"
+  ],
+  "current_zh": "青粉"
+ },
+ "aubrey_(omori)": {
+  "category": "character",
+  "posts": 6064,
+  "en": "Aubrey",
+  "ja": "見た人もツインテールオーブリーを描く",
+  "aliases": [
+   "奥布里",
+   "見た人もツインテールオーブリーを描く"
+  ],
+  "current_zh": "奥布里"
+ },
+ "silver_wolf_(honkai:_star_rail)": {
+  "category": "character",
+  "posts": 5922,
+  "en": "Silver Wolf",
+  "ja": "銀狼",
+  "aliases": [
+   "銀狼(スターレイル)",
+   "ぎんろう",
+   "银狼",
+   "銀狼",
+   "은랑"
+  ],
+  "current_zh": "银狼"
+ },
+ "higuchi_madoka": {
+  "category": "character",
+  "posts": 5900,
+  "en": "Higuchi Madoka",
+  "ja": "樋口円香",
+  "aliases": [
+   "樋口円香",
+   "円香",
+   "とおまど"
+  ],
+  "current_zh": "樋口圆香"
+ },
+ "kotobuki_tsumugi": {
+  "category": "character",
+  "posts": 5892,
+  "en": "Kotobuki Tsumugi",
+  "ja": "琴吹紬",
+  "aliases": [
+   "琴吹紬",
+   "琴吹䌷"
+  ],
+  "current_zh": "琴吹䌷"
+ },
+ "shiranui_mai": {
+  "category": "character",
+  "posts": 5878,
+  "en": "Shiranui Mai",
+  "ja": "不知火舞",
+  "aliases": [
+   "不知火舞"
+  ],
+  "current_zh": "不知火舞"
+ },
+ "kikuchi_makoto": {
+  "category": "character",
+  "posts": 5860,
+  "en": "Kikuchi Makoto",
+  "ja": "きくちまこと",
+  "aliases": [
+   "菊地真",
+   "きくちまこと"
+  ],
+  "current_zh": "菊地真"
+ },
+ "anchovy_(girls_und_panzer)": {
+  "category": "character",
+  "posts": 5842,
+  "en": "Anchovy",
+  "ja": "アンチョビ",
+  "aliases": [
+   "アンチョビ",
+   "アンチョビ(GuP)",
+   "安斎千代美",
+   "アンツィオ高校",
+   "ドゥーチェ",
+   "ペパチョビ",
+   "まほチョビ",
+   "隊長組"
+  ],
+  "current_zh": "队长组"
+ },
+ "sukuna_shinmyoumaru": {
+  "category": "character",
+  "posts": 5841,
+  "en": "Sukuna Shinmyoumaru",
+  "ja": "少名針妙丸",
+  "aliases": [
+   "少名針妙丸",
+   "少名针妙丸",
+   "스쿠나신묘마루"
+  ],
+  "current_zh": "少名针妙丸"
+ },
+ "medusa_(fate)": {
+  "category": "character",
+  "posts": 5824,
+  "en": "Medusa",
+  "ja": "メドゥーサ(Fate)",
+  "aliases": [
+   "メドゥーサ(Fate)",
+   "美杜莎"
+  ],
+  "current_zh": "美杜莎"
+ },
+ "irys_(hololive)": {
+  "category": "character",
+  "posts": 5797,
+  "en": "Irys",
+  "ja": "アイリス",
+  "aliases": [
+   "アイリス",
+   "埃莉丝"
+  ],
+  "current_zh": "埃莉丝"
+ },
+ "anyoji_hime": {
+  "category": "character",
+  "posts": 5750,
+  "en": "Anyoji Hime",
+  "ja": "1日1あにょ",
+  "aliases": [
+   "安養寺姫芽",
+   "1日1あにょ"
+  ],
+  "current_zh": "安养寺姫芽"
+ },
+ "sephiroth": {
+  "category": "character",
+  "posts": 5701,
+  "en": "Sephiroth",
+  "ja": "セフィロス",
+  "aliases": [
+   "セフィロス",
+   "萨菲罗斯"
+  ],
+  "current_zh": "萨菲罗斯"
+ },
+ "female_admiral_(kancolle)": {
+  "category": "character",
+  "posts": 5680,
+  "en": "Female Admiral",
+  "ja": "提督",
+  "aliases": [
+   "女性提督",
+   "提督"
+  ],
+  "current_zh": "提督"
+ },
+ "raiden_mei": {
+  "category": "character",
+  "posts": 5624,
+  "en": "Raiden Mei",
+  "ja": "芽衣",
+  "aliases": [
+   "雷电芽衣",
+   "芽衣",
+   "雷電芽衣"
+  ],
+  "current_zh": "雷电芽衣"
+ },
+ "ceres_fauna": {
+  "category": "character",
+  "posts": 5610,
+  "en": "Ceres Fauna",
+  "ja": "セレス・ファウナ",
+  "aliases": [
+   "セレス・ファウナ",
+   "塞莱希·法娜"
+  ],
+  "current_zh": "塞莱希·法娜"
+ },
+ "ooi_(kancolle)": {
+  "category": "character",
+  "posts": 5592,
+  "en": "Ooi",
+  "ja": "大井",
+  "aliases": [
+   "大井",
+   "大井(艦隊これくしょん)",
+   "大井(艦これ)",
+   "大北"
+  ],
+  "current_zh": "大井"
+ },
+ "sendai_(kancolle)": {
+  "category": "character",
+  "posts": 5587,
+  "en": "Sendai",
+  "ja": "川内",
+  "aliases": [
+   "川内",
+   "川内(艦隊これくしょん)",
+   "川内(艦これ)",
+   "夜戦バカ"
+  ],
+  "current_zh": "川内"
+ },
+ "yumemi_riamu": {
+  "category": "character",
+  "posts": 5582,
+  "en": "Yumemi Riamu",
+  "ja": "夢見りあむ",
+  "aliases": [
+   "夢見りあむ",
+   "梦见璃亚梦"
+  ],
+  "current_zh": "梦见璃亚梦"
+ },
+ "shijou_takane": {
+  "category": "character",
+  "posts": 5581,
+  "en": "Shijou Takane",
+  "ja": "四条貴音",
+  "aliases": [
+   "四条貴音"
+  ],
+  "current_zh": "四条贵音"
+ },
+ "musashi_(kancolle)": {
+  "category": "character",
+  "posts": 5571,
+  "en": "Musashi",
+  "ja": "武蔵",
+  "aliases": [
+   "武蔵",
+   "武蔵(艦隊これくしょん)",
+   "武蔵(艦これ)"
+  ],
+  "current_zh": "武藏"
+ },
+ "okita_souji_(koha-ace)": {
+  "category": "character",
+  "posts": 5569,
+  "en": "Okita Souji",
+  "ja": "沖田総司",
+  "aliases": [
+   "桜セイバー",
+   "沖田総司",
+   "沖田総司(fate)",
+   "沖田総司(FateGO)"
+  ],
+  "current_zh": "冲田总司"
+ },
+ "akashi_(kancolle)": {
+  "category": "character",
+  "posts": 5438,
+  "en": "Akashi",
+  "ja": "明石",
+  "aliases": [
+   "明石",
+   "明石(艦隊これくしょん)",
+   "明石(艦これ)",
+   "アイテム屋娘"
+  ],
+  "current_zh": "明石"
+ },
+ "senketsu": {
+  "category": "character",
+  "posts": 5436,
+  "en": "Senketsu",
+  "ja": "鮮血(キルラキル)",
+  "aliases": [
+   "鮮血",
+   "鮮血(キルラキル)"
+  ],
+  "current_zh": "鲜血"
+ },
+ "shirasaka_koume": {
+  "category": "character",
+  "posts": 5423,
+  "en": "Shirasaka Koume",
+  "ja": "しょうこうめ",
+  "aliases": [
+   "白坂小梅",
+   "しょうこうめ"
+  ],
+  "current_zh": "白坂小梅"
+ },
+ "shiranui_(kancolle)": {
+  "category": "character",
+  "posts": 5374,
+  "en": "Shiranui",
+  "ja": "不知火",
+  "aliases": [
+   "不知火",
+   "不知火(艦隊これくしょん)",
+   "不知火(艦これ)"
+  ],
+  "current_zh": "不知火"
+ },
+ "vshojo": {
+  "category": "copyright",
+  "posts": 5359,
+  "en": "Vshojo",
+  "ja": "V少女",
+  "aliases": [
+   "V少女"
+  ],
+  "current_zh": "V少女"
+ },
+ "sazanami_(kancolle)": {
+  "category": "character",
+  "posts": 5354,
+  "en": "Sazanami",
+  "ja": "漣",
+  "aliases": [
+   "漣",
+   "漣(艦隊これくしょん)",
+   "漣(艦これ)"
+  ],
+  "current_zh": "涟"
+ },
+ "kachimachi_kosuzu": {
+  "category": "character",
+  "posts": 5305,
+  "en": "Kachimachi Kosuzu",
+  "ja": "ぎんすず",
+  "aliases": [
+   "徒町小鈴",
+   "徒町チャレンジ",
+   "きょうのかちまち",
+   "ぎんすず",
+   "すずぎん"
+  ],
+  "current_zh": "徒町小铃"
+ },
+ "monster_girl_encyclopedia": {
+  "category": "copyright",
+  "posts": 5292,
+  "en": "Monster Girl Encyclopedia",
+  "ja": "魔物娘図鑑",
+  "aliases": [
+   "魔物娘図鑑",
+   "魔物娘図鑑二次"
+  ],
+  "current_zh": "魔物娘图鉴"
+ },
+ "kosaka_honoka": {
+  "category": "character",
+  "posts": 5269,
+  "en": "Kosaka Honoka",
+  "ja": "高坂穂乃果",
+  "aliases": [
+   "高坂穂乃果",
+   "高坂穗乃果"
+  ],
+  "current_zh": "高坂穗乃果"
+ },
+ "octoling_player_character": {
+  "category": "character",
+  "posts": 5267,
+  "en": "Octoling Player Character",
+  "ja": "8号",
+  "aliases": [
+   "8号",
+   "タコガール",
+   "タコボーイ",
+   "タコちゃん",
+   "オクトリング"
+  ],
+  "current_zh": "8号"
+ },
+ "kasumi_(kancolle)": {
+  "category": "character",
+  "posts": 5213,
+  "en": "Kasumi",
+  "ja": "霞",
+  "aliases": [
+   "霞(艦隊これくしょん)",
+   "霞(艦これ)",
+   "霞"
+  ],
+  "current_zh": "霞"
+ },
+ "zani_(wuthering_waves)": {
+  "category": "character",
+  "posts": 5200,
+  "en": "Zani",
+  "ja": "ザンニー",
+  "aliases": [
+   "贊妮",
+   "赞妮",
+   "ザンニー",
+   "젠니"
+  ],
+  "current_zh": "赞妮"
+ },
+ "meltryllis_(fate)": {
+  "category": "character",
+  "posts": 5196,
+  "en": "Meltryllis",
+  "ja": "メルトリリス",
+  "aliases": [
+   "メルトリリス",
+   "溶解莉莉絲",
+   "溶解莉莉丝"
+  ],
+  "current_zh": "溶解莉莉丝"
+ },
+ "kiryuuin_satsuki": {
+  "category": "character",
+  "posts": 5169,
+  "en": "Kiryuuin Satsuki",
+  "ja": "鬼龍院皐月",
+  "aliases": [
+   "鬼龍院皐月",
+   "鬼龙院皋月"
+  ],
+  "current_zh": "鬼龙院皋月"
+ },
+ "samidare_(kancolle)": {
+  "category": "character",
+  "posts": 5154,
+  "en": "Samidare",
+  "ja": "五月雨",
+  "aliases": [
+   "五月雨",
+   "五月雨(艦隊これくしょん)",
+   "五月雨(艦これ)",
+   "毎日五月雨",
+   "五月雨ちゃんマジ天使"
+  ],
+  "current_zh": "五月雨"
+ },
+ "hoshizora_rin": {
+  "category": "character",
+  "posts": 5105,
+  "en": "Hoshizora Rin",
+  "ja": "金曜凛ちゃんりんりんりん",
+  "aliases": [
+   "星空凛",
+   "金曜凛ちゃんりんりんりん"
+  ],
+  "current_zh": "星空凛"
+ },
+ "yamashiro_(kancolle)": {
+  "category": "character",
+  "posts": 5081,
+  "en": "Yamashiro",
+  "ja": "山城",
+  "aliases": [
+   "山城",
+   "山城(艦隊これくしょん)",
+   "山城(艦これ)",
+   "小江戸美人戦艦"
+  ],
+  "current_zh": "山城"
+ },
+ "minase_iori": {
+  "category": "character",
+  "posts": 5079,
+  "en": "Minase Iori",
+  "ja": "水瀬伊織",
+  "aliases": [
+   "水瀬伊織",
+   "みなせいおり"
+  ],
+  "current_zh": "水濑伊织"
+ },
+ "wakasagihime": {
+  "category": "character",
+  "posts": 5048,
+  "en": "Wakasagihime",
+  "ja": "わかさぎ姫",
+  "aliases": [
+   "わかさぎ姫",
+   "若鹭姬",
+   "와카사기히메"
+  ],
+  "current_zh": "若鹭姬"
+ },
+ "selene_(pokemon)": {
+  "category": "character",
+  "posts": 5029,
+  "en": "Selene",
+  "ja": "コウミ",
+  "aliases": [
+   "ミヅキ(トレーナー)",
+   "コウミ",
+   "コウミ(トレーナー)",
+   "グラミヅ",
+   "ムーン(ポケスペ)",
+   "ミヅリリ",
+   "ヨウミヅ",
+   "SM♀主"
+  ],
+  "current_zh": "SM♀主"
+ },
+ "symboli_rudolf_(umamusume)": {
+  "category": "character",
+  "posts": 5023,
+  "en": "Symboli Rudolf",
+  "ja": "カイチョー",
+  "aliases": [
+   "シンボリルドルフ(ウマ娘)",
+   "シンボリルドルフ",
+   "ルナ(ウマ娘)",
+   "カイチョー",
+   "鲁道夫象征"
+  ],
+  "current_zh": "鲁道夫象征"
+ },
+ "female_rover_(wuthering_waves)": {
+  "category": "character",
+  "posts": 5003,
+  "en": "Female Rover",
+  "ja": "潮妹",
+  "aliases": [
+   "女漂泊者",
+   "潮妹",
+   "鸣潮乙女"
+  ],
+  "current_zh": "鸣潮乙女"
+ },
+ "raora_panthera": {
+  "category": "character",
+  "posts": 4979,
+  "en": "Raora Panthera",
+  "ja": "ラオーラ・パンテーラ",
+  "aliases": [
+   "ラオーラ・パンテーラ",
+   "拉欧拉·潘特拉"
+  ],
+  "current_zh": "拉欧拉·潘特拉"
+ },
+ "tsukihime_(remake)": {
+  "category": "copyright",
+  "posts": 4947,
+  "en": "Tsukihime (remake)",
+  "ja": "月姫R",
+  "aliases": [
+   "月姫Apieceofblueglassmoon",
+   "月姫リメイク",
+   "月姫R"
+  ],
+  "current_zh": "月姫R"
+ },
+ "dan_heng_(honkai:_star_rail)": {
+  "category": "character",
+  "posts": 4913,
+  "en": "Dan Heng",
+  "ja": "丹恒",
+  "aliases": [
+   "丹恒",
+   "단항"
+  ],
+  "current_zh": "丹恒"
+ },
+ "commander_(azur_lane)": {
+  "category": "character",
+  "posts": 4906,
+  "en": "Commander",
+  "ja": "司令(アズールレーン)",
+  "aliases": [
+   "指挥官",
+   "指挥官(碧蓝航线)",
+   "指揮官(アズールレーン)",
+   "司令官(アズールレーン)",
+   "司令(アズールレーン)",
+   "指揮官",
+   "司令官",
+   "司令"
+  ],
+  "current_zh": "指挥官"
+ },
+ "shu_(arknights)": {
+  "category": "character",
+  "posts": 4859,
+  "en": "Shu",
+  "ja": "シュウ(アークナイツ)",
+  "aliases": [
+   "黍",
+   "明日方舟黍",
+   "シュウ(アークナイツ)",
+   "슈"
+  ],
+  "current_zh": "黍"
+ },
+ "sagisawa_fumika": {
+  "category": "character",
+  "posts": 4796,
+  "en": "Sagisawa Fumika",
+  "ja": "鷺沢文香",
+  "aliases": [
+   "鷺沢文香",
+   "鷲沢文香"
+  ],
+  "current_zh": "鹭泽文香"
+ },
+ "akamatsu_kaede": {
+  "category": "character",
+  "posts": 4795,
+  "en": "Akamatsu Kaede",
+  "ja": "赤松楓",
+  "aliases": [
+   "赤松楓",
+   "赤松枫"
+  ],
+  "current_zh": "赤松枫"
+ },
+ "twilight_(spy_x_family)": {
+  "category": "character",
+  "posts": 4787,
+  "en": "Twilight",
+  "ja": "ロイヨル",
+  "aliases": [
+   "黄昏(SPY×FAMILY)",
+   "ロイド・フォージャー",
+   "ロイヨル"
+  ],
+  "current_zh": "黄昏(SPY×FAMILY)"
+ },
+ "herta_(honkai:_star_rail)": {
+  "category": "character",
+  "posts": 4752,
+  "en": "Herta",
+  "ja": "ヘルタ",
+  "aliases": [
+   "黑塔",
+   "ヘルタ",
+   "ヘルタ(スターレイル)"
+  ],
+  "current_zh": "黑塔"
+ },
+ "ganaha_hibiki": {
+  "category": "character",
+  "posts": 4724,
+  "en": "Ganaha Hibiki",
+  "ja": "我那覇響",
+  "aliases": [
+   "我那覇響",
+   "がなはひびき"
+  ],
+  "current_zh": "我那霸响"
+ },
+ "w_(arknights)": {
+  "category": "character",
+  "posts": 4711,
+  "en": "W",
+  "ja": "W(アークナイツ)",
+  "aliases": [
+   "W(明日方舟)",
+   "明日方舟w",
+   "W(명일방주)",
+   "W(アークナイツ)"
+  ],
+  "current_zh": "明日方舟w"
+ },
+ "kirishima_(kancolle)": {
+  "category": "character",
+  "posts": 4704,
+  "en": "Kirishima",
+  "ja": "霧島",
+  "aliases": [
+   "霧島",
+   "霧島(艦隊これくしょん)",
+   "霧島(艦これ)"
+  ],
+  "current_zh": "雾岛"
+ },
+ "takarada_rikka": {
+  "category": "character",
+  "posts": 4652,
+  "en": "Takarada Rikka",
+  "ja": "六アカ",
+  "aliases": [
+   "宝多六花",
+   "六アカ",
+   "水着六花"
+  ],
+  "current_zh": "宝多六花"
+ },
+ "nakano_nino": {
+  "category": "character",
+  "posts": 4628,
+  "en": "Nakano Nino",
+  "ja": "中野二乃",
+  "aliases": [
+   "中野二乃",
+   "长发二乃"
+  ],
+  "current_zh": "长发二乃"
+ },
+ "ahri_(league)": {
+  "category": "character",
+  "posts": 4614,
+  "en": "Ahri",
+  "ja": "アーリ",
+  "aliases": [
+   "아리",
+   "阿狸",
+   "阿璃",
+   "アーリ"
+  ],
+  "current_zh": "阿狸"
+ },
+ "shirakami_fubuki_(1st_costume)": {
+  "category": "character",
+  "posts": 4579,
+  "en": "Shirakami Fubuki",
+  "ja": "白上フブキ(通常)",
+  "aliases": [
+   "白上フブキ(通常)",
+   "白上吹雪(通常)"
+  ],
+  "current_zh": "白上吹雪(通常)"
+ },
+ "ump45_(girls'_frontline)": {
+  "category": "character",
+  "posts": 4559,
+  "en": "Ump45",
+  "ja": "UMP45(ドールズフロントライン)",
+  "aliases": [
+   "UMP45(ドールズフロントライン)",
+   "UMP45(少女前線)",
+   "UMP姉妹"
+  ],
+  "current_zh": "UMP姉妹"
+ },
+ "elysia_(herrscher_of_human:_ego)_(honkai_impact)": {
+  "category": "character",
+  "posts": 4545,
+  "en": "Elysia (herrscher Of Human: Ego)",
+  "ja": "エリシア(人の律者)",
+  "aliases": [
+   "人之律者",
+   "エリシア(人の律者)",
+   "エリシア(真我・人の律者)"
+  ],
+  "current_zh": "人之律者"
+ },
+ "kizuna_akari": {
+  "category": "character",
+  "posts": 4540,
+  "en": "Kizuna Akari",
+  "ja": "紲星あかり",
+  "aliases": [
+   "紲星あかり",
+   "绁星灯"
+  ],
+  "current_zh": "绁星灯"
+ },
+ "djeeta_(granblue_fantasy)": {
+  "category": "character",
+  "posts": 4529,
+  "en": "Djeeta",
+  "ja": "ジータ",
+  "aliases": [
+   "ジータ",
+   "ジータ(グラブル)",
+   "ジータ(プリコネ)",
+   "姬塔"
+  ],
+  "current_zh": "姬塔"
+ },
+ "sangonomiya_kokomi": {
+  "category": "character",
+  "posts": 4500,
+  "en": "Sangonomiya Kokomi",
+  "ja": "珊瑚宮心海",
+  "aliases": [
+   "珊瑚宫心海",
+   "珊瑚宮心海"
+  ],
+  "current_zh": "珊瑚宫心海"
+ },
+ "black_rock_shooter_(character)": {
+  "category": "character",
+  "posts": 4467,
+  "en": "Black Rock Shooter",
+  "ja": "ブラック★ロックシューター",
+  "aliases": [
+   "ブラック★ロックシューター",
+   "黑岩射手(角色)"
+  ],
+  "current_zh": "黑岩射手(角色)"
+ },
+ "aotsuki_eito": {
+  "category": "character",
+  "posts": 4439,
+  "en": "Aotsuki Eito",
+  "ja": "衛拓",
+  "aliases": [
+   "蒼月衛人",
+   "衛拓",
+   "苍月卫人",
+   "苍澄"
+  ],
+  "current_zh": "苍澄"
+ },
+ "os-tan": {
+  "category": "copyright",
+  "posts": 4434,
+  "en": "OS",
+  "ja": "OS娘",
+  "aliases": [
+   "OS娘",
+   "OSたん",
+   "OS息子",
+   "OS擬人化"
+  ],
+  "current_zh": "OS娘"
+ },
+ "haru_urara_(umamusume)": {
+  "category": "character",
+  "posts": 4425,
+  "en": "Haru Urara",
+  "ja": "ハルウララ",
+  "aliases": [
+   "ハルウララ(ウマ娘)",
+   "ハルウララ",
+   "春烏菈菈",
+   "春乌拉拉"
+  ],
+  "current_zh": "春乌拉拉"
+ },
+ "doremy_sweet": {
+  "category": "character",
+  "posts": 4403,
+  "en": "Doremy Sweet",
+  "ja": "ドレミー・スイート",
+  "aliases": [
+   "ドレミー・スイート",
+   "哆来咪·苏伊特",
+   "도레미스위트"
+  ],
+  "current_zh": "哆来咪·苏伊特"
+ },
+ "holo": {
+  "category": "character",
+  "posts": 4373,
+  "en": "Holo",
+  "ja": "ホロ",
+  "aliases": [
+   "ホロ",
+   "赫蘿",
+   "赫萝"
+  ],
+  "current_zh": "赫萝"
+ },
+ "giorno_giovanna": {
+  "category": "character",
+  "posts": 4371,
+  "en": "Giorno Giovanna",
+  "ja": "茸茸",
+  "aliases": [
+   "ジョルノ・ジョバアーナ",
+   "ジョルノ・ジョバァーナ",
+   "茸茸",
+   "ジョルミス",
+   "五乔",
+   "乔鲁诺·乔巴纳",
+   "汐华初流乃"
+  ],
+  "current_zh": "五乔"
+ },
+ "kujo_jolyne": {
+  "category": "character",
+  "posts": 4366,
+  "en": "Kujo Jolyne",
+  "ja": "徐倫",
+  "aliases": [
+   "空条徐倫",
+   "六乔",
+   "空条徐伦",
+   "徐倫"
+  ],
+  "current_zh": "六乔"
+ },
+ "hiryuu_(kancolle)": {
+  "category": "character",
+  "posts": 4357,
+  "en": "Hiryuu",
+  "ja": "飛龍",
+  "aliases": [
+   "飛龍",
+   "飛龍(艦隊これくしょん)",
+   "飛龍(艦これ)"
+  ],
+  "current_zh": "飞龙"
+ },
+ "nagisa_(blue_archive)": {
+  "category": "character",
+  "posts": 4354,
+  "en": "Nagisa",
+  "ja": "桐藤ナギサ",
+  "aliases": [
+   "桐藤ナギサ",
+   "桐藤渚",
+   "渚(碧蓝档案)"
+  ],
+  "current_zh": "渚(碧蓝档案)"
+ },
+ "arch_bishop_(ragnarok_online)": {
+  "category": "character",
+  "posts": 4344,
+  "en": "Arch Bishop",
+  "ja": "主教",
+  "aliases": [
+   "アークビショップ",
+   "アクビ",
+   "主教"
+  ],
+  "current_zh": "主教"
+ },
+ "sakurauchi_riko": {
+  "category": "character",
+  "posts": 4344,
+  "en": "Sakurauchi Riko",
+  "ja": "ようりこ",
+  "aliases": [
+   "桜内梨子",
+   "ようりこ"
+  ],
+  "current_zh": "桜内梨子"
+ },
+ "yu-gi-oh!_gx": {
+  "category": "copyright",
+  "posts": 4331,
+  "en": "Yu-gi-oh! Gx",
+  "ja": "遊戯王GX",
+  "aliases": [
+   "遊戯王GX",
+   "遊戯王GX女性向け"
+  ],
+  "current_zh": "游戏王GX"
+ },
+ "makise_kurisu": {
+  "category": "character",
+  "posts": 4318,
+  "en": "Makise Kurisu",
+  "ja": "クリスティーナ",
+  "aliases": [
+   "牧瀬紅莉栖",
+   "牧濑红莉栖",
+   "クリスティーナ"
+  ],
+  "current_zh": "牧瀬红莉栖"
+ },
+ "ryuuguu_rena": {
+  "category": "character",
+  "posts": 4304,
+  "en": "Ryuuguu Rena",
+  "ja": "竜宮レナ",
+  "aliases": [
+   "竜宮レナ",
+   "龙宫礼奈",
+   "龙宫蕾娜",
+   "류구레이나"
+  ],
+  "current_zh": "龙宫礼奈"
+ },
+ "reitaisai": {
+  "category": "copyright",
+  "posts": 4279,
+  "en": "Reitaisai",
+  "ja": "例大祭",
+  "aliases": [
+   "例大祭",
+   "博麗神社例大祭"
+  ],
+  "current_zh": "例大祭"
+ },
+ "enoshima_junko": {
+  "category": "character",
+  "posts": 4261,
+  "en": "Enoshima Junko",
+  "ja": "江ノ島盾子",
+  "aliases": [
+   "江ノ島盾子",
+   "江ノ島順子",
+   "江之岛盾子"
+  ],
+  "current_zh": "江之岛盾子"
+ },
+ "motoori_kosuzu": {
+  "category": "character",
+  "posts": 4233,
+  "en": "Motoori Kosuzu",
+  "ja": "本居小鈴",
+  "aliases": [
+   "本居小鈴",
+   "모토오리코스즈",
+   "本居小铃"
+  ],
+  "current_zh": "本居小铃"
+ },
+ "koizumi_hanayo": {
+  "category": "character",
+  "posts": 4223,
+  "en": "Koizumi Hanayo",
+  "ja": "火曜日かよちゃん",
+  "aliases": [
+   "小泉花陽",
+   "火曜日かよちゃん"
+  ],
+  "current_zh": "小泉花阳"
+ },
+ "elysia_(miss_pink_elf)_(honkai_impact)": {
+  "category": "character",
+  "posts": 4197,
+  "en": "Elysia (miss Pink Elf)",
+  "ja": "エリシア(通常)",
+  "aliases": [
+   "エリシア(通常)",
+   "粉色妖精小姐♪"
+  ],
+  "current_zh": "粉色妖精小姐♪"
+ },
+ "aubrey_(faraway)_(omori)": {
+  "category": "character",
+  "posts": 4188,
+  "en": "Aubrey (faraway)",
+  "ja": "見た人もツインテールオーブリーを描く",
+  "aliases": [
+   "奥布里",
+   "見た人もツインテールオーブリーを描く"
+  ],
+  "current_zh": "奥布里"
+ },
+ "ayase_momo": {
+  "category": "character",
+  "posts": 4172,
+  "en": "Ayase Momo",
+  "ja": "綾瀬桃",
+  "aliases": [
+   "綾瀬桃"
+  ],
+  "current_zh": "绫濑桃"
+ },
+ "hiroi_kikuri": {
+  "category": "character",
+  "posts": 4129,
+  "en": "Hiroi Kikuri",
+  "ja": "廣井きくり",
+  "aliases": [
+   "廣井きくり",
+   "广井菊里"
+  ],
+  "current_zh": "广井菊里"
+ },
+ "futaba_anzu": {
+  "category": "character",
+  "posts": 4113,
+  "en": "Futaba Anzu",
+  "ja": "双葉杏",
+  "aliases": [
+   "双葉杏",
+   "双葉杏(物理)",
+   "双叶杏"
+  ],
+  "current_zh": "双叶杏"
+ },
+ "kisume": {
+  "category": "character",
+  "posts": 4097,
+  "en": "Kisume",
+  "ja": "キスメ",
+  "aliases": [
+   "キスメ",
+   "琪斯美",
+   "키스메"
+  ],
+  "current_zh": "琪斯美"
+ },
+ "sinclair_(project_moon)": {
+  "category": "character",
+  "posts": 4079,
+  "en": "Sinclair",
+  "ja": "シンクレア",
+  "aliases": [
+   "辛克莱",
+   "シンクレア"
+  ],
+  "current_zh": "辛克莱"
+ }
+}

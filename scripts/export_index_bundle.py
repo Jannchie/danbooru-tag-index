@@ -99,6 +99,11 @@ NAME_MAP_FILES = ("character_name_map.json", "copyright_name_map.json", "artist_
 # alias pool. Applied last and only into empty slots -- see load_zh_supplement.
 SUPPLEMENT_FILE = "zh_supplement.json"
 
+# Tags whose pool-derived Chinese name a review found wrong without finding a
+# replacement. Separate from the supplement because it is the opposite assertion:
+# that file says "the name is X", this one says "whatever the pool gave is not it".
+REJECTED_FILE = "zh_rejected.json"
+
 KATAKANA = re.compile(r"[ァ-ヶ]")
 
 # A tag name's length is stored in one byte; this is a real format constraint,
@@ -256,6 +261,46 @@ def load_zh_supplement(
             filled += 1
     print(f"  {SUPPLEMENT_FILE}: {filled:,} Chinese names filled in, {corrected:,} corrected")
     return filled + corrected
+
+
+def load_zh_rejections(
+    translations_dir: Path,
+    wanted: set[str],
+    name_maps: dict[str, dict[str, str]],
+    converters: Converters | None,
+) -> int:
+    """Drop Chinese display names a review rejected without finding a replacement.
+
+    A reviewer can be certain a name is wrong and still not know the right one:
+    `anchovy_(girls_und_panzer)` carried 队长组, which is a pairing tag, and
+    `selene_(pokemon)` carried SM♀主. `zh_supplement` can only assert a name, so
+    with that file alone the wrong one survives -- the review's "no" has nowhere
+    to go. Falling back to the English tag name is the better failure, by the same
+    rule the rest of this pipeline follows: a wrong name is worse than none.
+
+    Both Chinese slots go. The verdict is about the entity -- there is no name --
+    not about one script, and keeping the traditional slot let `build_sections`
+    derive the simplified one straight back: `nugget_(project_moon)` held 自職員
+    (a Japanese value misfiled as traditional), so dropping only zh_hans produced
+    自职员 on the next line instead of the English fallback.
+    """
+    path = translations_dir / REJECTED_FILE
+    if not path.exists():
+        return 0
+    data = json.loads(path.read_text(encoding="utf-8"))
+    tags = data if isinstance(data, list) else list(data)
+    dropped = 0
+    for tag in tags:
+        if tag not in wanted:
+            continue
+        slot = name_maps.get(tag)
+        if not slot or not slot.get("zh_hans"):
+            continue
+        slot.pop("zh_hans")
+        slot.pop("zh_hant", None)
+        dropped += 1
+    print(f"  {REJECTED_FILE}: {dropped:,} Chinese names dropped as wrong")
+    return dropped
 
 
 def load_other_names(path: Path, wanted: set[str]) -> dict[str, list[str]]:
@@ -492,6 +537,8 @@ def main() -> None:
         name_maps = load_name_maps(Path(args.translations_dir), wanted)
         converters = build_converters()
         load_zh_supplement(Path(args.translations_dir), wanted, name_maps, converters)
+        # 拒绝在补充之后:审查若给出了替代名,那条断言更强,不该再被撤掉。
+        load_zh_rejections(Path(args.translations_dir), wanted, name_maps, converters)
         aliases = Path(args.wiki_aliases) if args.wiki_aliases else index_dir / "wiki_other_names.json"
         other_names = load_other_names(aliases, wanted)
 

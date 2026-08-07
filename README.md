@@ -283,9 +283,42 @@ buckets, 359 of them above 1,000 posts. `zh_manual.json` holds verified
 corrections; the supplement layer overrides the map rather than only filling gaps,
 because a fill-only layer could never have fixed this one.
 
-**2,576 popular tags still carry a Chinese name that came from the pool and was
-never reviewed by a translation pass.** `translate_prep.py` selects only tags with
-no Chinese name, so those are not even candidates for review yet.
+### Reviewing what the pool already gave
+
+A tag with a Chinese name was invisible to every pass above: `translate_prep.py`
+selected only tags with *no* Chinese name, so a name that was present but wrong
+could never be reached. At the shipping threshold 6,167 tags were in that state —
+a Chinese name taken from the alias pool by a heuristic, seen by nobody.
+
+`translate_prep.py --review` / `translate_merge.py --review` are that pass. It asks
+a different question — *is this name right* — and defaults to keeping what is
+there, because replacing a correct name with a different correct name is pure loss.
+Over the 1,901 such tags above 500 posts the pool turned out to be **right about
+85% of the time**, which is the useful number here: the heuristic was not bad, it
+had a bad tail.
+
+The 12% it got wrong fell into recognisable classes, all traceable to the pool
+being built for recall:
+
+| Class | Example |
+| --- | --- |
+| fandom slang | `giorno_giovanna` 五乔 → 乔鲁诺·乔巴纳 |
+| a pairing, not a character | `suzuya_(kancolle)` 铃熊 → 铃谷 |
+| a group tag | `ump45_(girls'_frontline)` UMP姉妹 → UMP45 |
+| an epithet, not a name | `xiao_(genshin_impact)` 金鹏 → 魈 |
+| Japanese glyphs | 桜内梨子 → 樱内梨子, 牧瀬 → 牧濑 |
+| a work suffix | `训练员(赛马娘)` → 训练员 |
+
+Two mechanisms came out of it. A reviewer can be sure a name is wrong and still
+not know the right one — `anchovy_(girls_und_panzer)` carried 队长组, a pairing tag
+— so `zh_rejected.json` drops a name and lets the tag fall back to English;
+`zh_supplement.json` can only assert one, so without it the review's "no" had
+nowhere to go. And stripping a work suffix is right only while no sibling tag
+shares the base name: `shameimaru_aya_(newsboy)` went from 铃奈庵文 to 射命丸文 and
+became indistinguishable from `shameimaru_aya` in the legend. `translate_merge.py`
+reports those clashes rather than reverting them, because half are correct —
+`scaramouche_(genshin_impact)` and `scaramouche_(harbinger)_(genshin_impact)` are
+one character and *should* share a name.
 
 **A supplied Chinese name is not necessarily Chinese.** `fill_cjk` converts only
 when *deriving* a missing field; a value the wiki bucket or `*_official.json`
@@ -327,3 +360,4 @@ nothing in this repo can regenerate them:
 | `character_official.json` | 0.9 MB | LLM selection among wiki candidates |
 | `zh_supplement.json` | 51 KB | LLM translation |
 | `zh_manual.json` | — | hand-verified corrections |
+| `zh_rejected.json` | — | names a review found wrong with no replacement |

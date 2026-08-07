@@ -1,3 +1,4 @@
+import json
 import struct
 
 import duckdb
@@ -393,3 +394,59 @@ def test_min_post_count_filters_tags(tmp_path):
     con.close()
     assert stats["tags"] == 1
     assert reader.record(0)["name"] == "kept"
+
+
+# --- 拒绝(审查判错但给不出替代名) -------------------------------------------------
+
+
+def _converters():
+    from export_index_bundle import build_converters
+
+    return build_converters()
+
+
+def test_rejection_drops_the_name_so_the_tag_falls_back_to_english(tmp_path):
+    from export_index_bundle import REJECTED_FILE, load_zh_rejections
+
+    (tmp_path / REJECTED_FILE).write_text(json.dumps(["anchovy"]), encoding="utf-8")
+    maps = {"anchovy": {"en": "Anchovy", "zh_hans": "队长组", "zh_hant": "隊長組"}}
+    assert load_zh_rejections(tmp_path, {"anchovy"}, maps, _converters()) == 1
+    assert maps["anchovy"] == {"en": "Anchovy"}
+
+
+def test_rejection_drops_the_traditional_slot_too(tmp_path):
+    # 判词是「这个实体没有中文名」,不是「简体那个不对」。只删简体的话 build_sections
+    # 会立刻从繁体反推回来:nugget_(project_moon) 的繁体是「自職員」(被误判成繁体的
+    # 日文值),于是删掉「脑叶公司oc」之后又冒出「自职员」,而不是退回英文。
+    from export_index_bundle import REJECTED_FILE, load_zh_rejections
+
+    (tmp_path / REJECTED_FILE).write_text(json.dumps(["nugget"]), encoding="utf-8")
+    maps = {"nugget": {"en": "Nugget", "zh_hans": "脑叶公司oc", "zh_hant": "自職員"}}
+    assert load_zh_rejections(tmp_path, {"nugget"}, maps, _converters()) == 1
+    assert maps["nugget"] == {"en": "Nugget"}
+
+
+def test_rejection_accepts_a_dict_as_well_as_a_list(tmp_path):
+    # 手写这个文件的人多半想在旁边记一句为什么,别为此让整次构建失败。
+    from export_index_bundle import REJECTED_FILE, load_zh_rejections
+
+    (tmp_path / REJECTED_FILE).write_text(
+        json.dumps({"anchovy": "队长组是 CP tag"}, ensure_ascii=False), encoding="utf-8")
+    maps = {"anchovy": {"zh_hans": "队长组"}}
+    assert load_zh_rejections(tmp_path, {"anchovy"}, maps, _converters()) == 1
+    assert "zh_hans" not in maps["anchovy"]
+
+
+def test_rejection_of_an_unshipped_or_unnamed_tag_is_a_no_op(tmp_path):
+    from export_index_bundle import REJECTED_FILE, load_zh_rejections
+
+    (tmp_path / REJECTED_FILE).write_text(json.dumps(["gone", "no_name"]), encoding="utf-8")
+    maps = {"no_name": {"en": "No Name"}}
+    assert load_zh_rejections(tmp_path, {"no_name"}, maps, _converters()) == 0
+    assert maps["no_name"] == {"en": "No Name"}
+
+
+def test_missing_rejection_file_is_not_an_error(tmp_path):
+    from export_index_bundle import load_zh_rejections
+
+    assert load_zh_rejections(tmp_path, set(), {}, None) == 0

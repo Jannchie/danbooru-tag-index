@@ -6,6 +6,7 @@ from typing import Any
 
 import opencc
 
+from _hanzi import repair_to_simplified, repair_to_traditional
 from _paths import TRANSLATIONS_DIR
 
 LANGS = ("en", "ja", "ko", "zh_hans", "zh_hant")
@@ -54,19 +55,25 @@ def normalize_chinese(chosen: dict[str, str]) -> dict[str, str]:
     「未来日記」「戦国BASARA」「封神演義」「銀牙伝説WEED」都是这么发出去的,占已发布
     中文名的 2.3%,且与 opencc 版本无关。
 
-    **只用 t2s,不用 jp2t。** 对已经是中文的串跑 jp2t 会把共用字当成日文倒转回去:
-    `mirinsoup` 的日文名「酢酸汁」被正确转成「醋酸汁」后,再跑一遍 jp2t 又变回
-    「酢酸汁」(jp2t 双向映射 酢⇄醋);「默天蕓」正确简化成「默天芸」后,jp2t 会把
-    芸 当作 藝 的新字体再转成「默天艺」。t2s 对简体是恒等,不可能弄坏已经正确的值。
+    交给 `_hanzi.repair_to_simplified`,它只在这个值**当前不合格**时才动手。这道闸门
+    是关键:对已经是中文的串跑 jp2t 会把共用字当成日文倒转回去(「醋酸汁」变回
+    「酢酸汁」、「默天芸」变成「默天艺」),而闸门让那些串根本不进入转换。
 
-    代价是纯日文新字体(戦/伝/錬 这类中文里不存在的字形)留了下来 —— 那需要一张
-    人工核过的字表,而不是一个会反向咬人的转换器。
+    因此这里现在也能修掉纯日文新字体 —— 曾经说需要一张人工字表才能做的事。实测修好
+    3,416 个已发布名字,最热的是「月姫」→「月姬」(15,740 投稿)和「西行寺幽々子」→
+    「西行寺幽幽子」(27,787 投稿)。自动筛查(被转掉的字若出现在其他合格名字里就可疑)
+    只剩 7 种可疑替换、共 10 个名字,且都是正确的日译中词汇(交差点→交叉点)。
 
-    繁体字段不动:它已经是繁体,t2s 会把它简化掉,jp2t 会咬它。
+    繁体字段也修,但目标不同:只清掉日文字形,不碰简繁。以前完全不修它,理由是「它已经
+    是繁体」—— 而实际上它常常是别名池里的日文原值,于是简体修好了、繁体还挂着「月姫」
+    「桜內梨子」「戦鬥潮流」。
     """
     hans = chosen.get("zh_hans")
     if hans:
-        chosen["zh_hans"] = _t2s.convert(hans)
+        chosen["zh_hans"] = repair_to_simplified(hans)
+    hant = chosen.get("zh_hant")
+    if hant:
+        chosen["zh_hant"] = repair_to_traditional(hant)
     return chosen
 
 
