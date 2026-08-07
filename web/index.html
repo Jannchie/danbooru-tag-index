@@ -21,6 +21,7 @@
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Five tag popularity curves over twenty years, on the dark chart the site draws.">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="preload" href="fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233987e5' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 17l5-6 4 3 6-8'/%3E%3C/svg%3E">
 <script type="application/ld+json">
 {
@@ -37,11 +38,25 @@
 }
 </script>
 <style>
+  /* Inter, subset to Latin and self-hosted -- 69 KB for the whole 400-700 axis.
+     `swap` is the point: text paints immediately in the system face and is
+     restyled when the file lands, so the font can never delay a first render.
+     Latin only, deliberately. A CJK webfont is megabytes, and the system CJK
+     faces are both better hinted for their scripts and already resident. SIL
+     OFL 1.1 -- see fonts/LICENSE-Inter.txt. */
+  @font-face {
+    font-family: "Inter var";
+    src: url("fonts/inter.woff2") format("woff2");
+    font-weight: 400 700;
+    font-style: normal;
+    font-display: swap;
+  }
+
   /* One declaration per token: light-dark() resolves against color-scheme, so
      the palette has a single source and the theme toggle only flips a scheme. */
   :root {
     color-scheme: light dark;
-    --latin: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    --latin: "Inter var", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
     /* Simplified is the default only because it is the most likely visitor;
        every language overrides it below. */
     --cjk: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "Source Han Sans SC", "Noto Sans CJK SC", "Noto Sans SC", sans-serif;

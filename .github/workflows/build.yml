@@ -79,6 +79,7 @@ jobs:
         run: |
           mkdir -p site
           cp web/index.html web/og.png web/robots.txt site/
+          cp -r web/fonts site/
           cp data/index/index_bundle.bin data/index/index_bundle.json site/
           # Generated rather than committed: it carries the build date, and a
           # committed one would go stale on every refresh that touches no file.
