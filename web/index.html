@@ -279,7 +279,7 @@
     #q { padding: 9px 11px; font-size: 16px; }
     .suggest { max-height: 44dvh; }
     .sug { padding: 9px 11px; }
-    .app { margin: 0; border-radius: 0; border-left: 0; border-right: 0; border-bottom: 0; }
+    .app { margin: 0; border-radius: 0; border-left: 0; border-right: 0; }
     .ctl { padding: 8px 9px; gap: 6px; row-gap: 7px; }
     .seg button { padding: 6px 9px; font-size: 12px; }
     .when { min-width: 72px; padding: 6px 9px; }
@@ -289,12 +289,19 @@
     .s .n, .s .v { font-size: 12px; }
     .plot { padding: 4px 3px 2px; }
 
-    /* A time series wants to be wider than tall. Left to fill a portrait phone the
-       plot lands near a 0.8 aspect, which reads as steep and cramped, so cap it and
-       let the readout take the slack -- inside one card the spare room is just part
-       of the surface rather than an empty box. */
-    .plot { flex: 0 0 auto; height: min(46dvh, 72vw); }
-    .readout { flex: 1 1 auto; max-height: none; }
+    /* A time series wants to be wider than tall. Left to fill a portrait phone
+       the plot lands near a 0.8 aspect, which reads as steep and cramped, so it
+       is capped. The slack used to go to the readout, which then drew a 200px
+       box around 60px of labels. It now falls below the card instead: margin is
+       quieter than a stretched panel, and the card ends where its content does. */
+    .plot { flex: 0 0 auto; height: min(52dvh, 88vw); }
+    .readout { flex: none; max-height: 34dvh; }
+    .app { flex: 0 1 auto; border-bottom: 1px solid var(--hairline); border-radius: 0 0 10px 10px; margin-bottom: 14px; }
+  }
+  @media (max-width: 480px) {
+    /* The date is what tips the bar onto a second row; the controls that do
+       something come first. It stays reachable in the page's metadata. */
+    .stamp { display: none; }
   }
   @media (max-width: 380px) {
     .series { grid-template-columns: 1fr; }
