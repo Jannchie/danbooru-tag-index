@@ -184,14 +184,16 @@
   .s:hover { background: var(--surface-2); }
   .s.off { opacity: .42; }
   .s .k { width: 14px; height: 2.5px; border-radius: 2px; flex: none; }
-  .s .n { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; color: var(--text-secondary); }
+  .s .n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; color: var(--text-secondary); }
   .s .v { font-size: 12.5px; font-weight: 620; flex: none; }
   .s .x { border: 0; background: none; color: var(--text-muted); cursor: pointer; padding: 0; flex: none; display: flex; align-items: center; }
   .s .x svg { width: 13px; height: 13px; }
   .s .x:hover { color: var(--text-primary); }
-  /* Same badge as the suggest list, one step quieter: in the legend it sits
-     next to the value, which is what the eye is here for. */
-  .s .cat { color: var(--text-muted); }
+  /* The category stacks under the name rather than sitting beside it: on one
+     line it competed with the value for the row's only free width, and a badge
+     outline around it made a secondary label look like a control. */
+  .s .main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+  .s .sub { font-size: 10px; color: var(--text-muted); }
   .empty { color: var(--text-muted); font-size: 12.5px; padding: 10px 6px; }
 
   /* ---- boot ---- */
@@ -988,7 +990,9 @@ function renderSeriesList() {
     const toggle = () => { commit(); p.hidden = !p.hidden; renderSeriesList(); render(); };
     row.onclick = toggle;
     row.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } };
-    row.append(key, el("span", "n", nameOf(p.idx)), el("span", "cat", catLabel(p.idx)), value, close);
+    const main = el("span", "main");
+    main.append(el("span", "n", nameOf(p.idx)), el("span", "sub", catLabel(p.idx)));
+    row.append(key, main, value, close);
     box.appendChild(row);
   }
   if (state.picked.length >= MAX_SERIES) box.appendChild(el("div", "empty", t("limit").replace("{n}", MAX_SERIES)));
