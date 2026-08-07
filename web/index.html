@@ -1163,10 +1163,8 @@ function render() {
 function renderSeriesList() {
   const box = $("series");
   box.replaceChildren();
-  if (!state.picked.length) {
-    box.appendChild(el("div", "empty", t("empty")));
-    return;
-  }
+  $("readout").hidden = !state.picked.length;
+  if (!state.picked.length) return;
   for (const p of state.picked) {
     const row = el("div", "s" + (p.hidden ? " off" : ""));
     row.setAttribute("role", "button");
