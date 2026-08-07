@@ -1203,6 +1203,11 @@ function readHash() {
 function detectLang() {
   const saved = localStorage.getItem("dbix-lang");
   if (saved && UI[saved]) return saved;
+  // A language variant page says so in its markup -- the URL already made that
+  // choice, and a crawler was served it. The root page carries no marker and
+  // falls through to sniffing the browser, which is what x-default means.
+  const served = document.querySelector('meta[name="dbix-lang"]')?.content;
+  if (served && UI[served]) return served;
   for (const tag of navigator.languages || [navigator.language || "en"]) {
     const lower = tag.toLowerCase();
     if (lower.startsWith("zh")) return /hant|tw|hk|mo/.test(lower) ? "zh_hant" : "zh_hans";

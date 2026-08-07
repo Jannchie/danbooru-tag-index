@@ -2,7 +2,7 @@
 
 Run by hand, not in CI:
 
-    uv run --with pillow --with "fonttools[woff]" python scripts/make_og_image.py
+    uv run --with pillow --with "fonttools[woff]" python scripts/make_og_image.py --all
 
 The output is committed. Teaching the build to rasterise text would drag a font
 stack and a renderer into CI to regenerate an image that changes by a pixel a
@@ -12,6 +12,12 @@ and a green build.
 The curves are real -- the tags the site seeds itself with, on the relative
 index, in the site's palette, under the page's own typeface. A card drawn from
 invented data would be a picture of a chart rather than a picture of this one.
+
+One card per UI language, because a shared link previews in whatever language
+its page is served in. The Latin card uses the page's own Inter; the CJK ones
+use a system face for that script, since Pillow binds one file per text run and
+cannot fall back mid-string -- and Inter, subset to Latin, has no Han glyphs at
+all. Those faces are Windows-only paths; on another OS pass --font-dir.
 
 Two rendering notes. Pillow antialiases text but not lines, so everything is
 drawn at 4x and downsampled. And the webfont in web/fonts is woff2, which
@@ -50,12 +56,59 @@ SERIES = [
 PLOT_TOP, PLOT_BOTTOM = 300, 584
 LABEL_GUTTER = 232   # right-hand strip the curves stop short of, for end labels
 
+# Slug is the file suffix and the site's sub-path; None means the root page.
+LANGS = {
+    "en": {
+        "slug": None,
+        "title": "Danbooru Tag Index",
+        "lead": "Twenty years of anime tag popularity, month by month",
+        "meta": "{tags} tags   ·   {months} months   ·   three normalisations   ·   five languages",
+        "fonts": None,
+        "title_size": 56,
+    },
+    "zh_hans": {
+        "slug": "zh-hans",
+        "title": "Danbooru 标签指数",
+        "lead": "二十年二次元标签流行度，逐月记录",
+        "meta": "{tags} 个标签   ·   {months} 个月   ·   三种归一化   ·   五种语言",
+        "fonts": ("msyh.ttc", "msyhbd.ttc"),
+        "title_size": 52,
+    },
+    "zh_hant": {
+        "slug": "zh-hant",
+        "title": "Danbooru 標籤指數",
+        "lead": "二十年二次元標籤流行度，逐月記錄",
+        "meta": "{tags} 個標籤   ·   {months} 個月   ·   三種歸一化   ·   五種語言",
+        "fonts": ("msjh.ttc", "msjhbd.ttc"),
+        "title_size": 52,
+    },
+    "ja": {
+        "slug": "ja",
+        "title": "Danbooru タグ指数",
+        "lead": "20年分のタグ人気度を、月ごとに",
+        "meta": "{tags} タグ   ·   {months} ヶ月   ·   3つの正規化   ·   5言語",
+        "fonts": ("YuGothR.ttc", "YuGothB.ttc"),
+        "title_size": 50,
+    },
+    "ko": {
+        "slug": "ko",
+        "title": "Danbooru 태그 지수",
+        "lead": "20년간의 태그 인기도, 월 단위로",
+        "meta": "{tags}개 태그   ·   {months}개월   ·   3가지 정규화   ·   5개 언어",
+        "fonts": ("malgun.ttf", "malgunbd.ttf"),
+        "title_size": 52,
+    },
+}
+
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Render the Open Graph card.")
+    parser = argparse.ArgumentParser(description="Render the Open Graph cards.")
     parser.add_argument("--index-dir", type=str, default=str(INDEX_DIR))
     parser.add_argument("--font", type=str, default="web/fonts/inter.woff2")
-    parser.add_argument("--output", type=str, default="web/og.png")
+    parser.add_argument("--font-dir", type=str, default="C:/Windows/Fonts", help="Where the system CJK faces live.")
+    parser.add_argument("--out-dir", type=str, default="web")
+    parser.add_argument("--lang", type=str, default=None, choices=sorted(LANGS), help="Render one language (default: all).")
+    parser.add_argument("--all", action="store_true", help="Accepted for symmetry; rendering all is the default.")
     return parser.parse_args()
 
 
@@ -113,10 +166,34 @@ def load_font(woff2: Path) -> Path:
     return out
 
 
-def sized(path: Path, size: int, weight: int) -> ImageFont.FreeTypeFont:
-    font = ImageFont.truetype(str(path), size * SCALE)
-    font.set_variation_by_axes([weight])
-    return font
+class Faces:
+    """Resolves (size, weight) to a font file for one language.
+
+    Inter is variable, so a weight is an axis value. The system CJK faces are
+    not: there a weight is a different file, and asking one for an axis raises.
+    """
+
+    def __init__(self, latin: Path, cjk: tuple[Path, Path] | None):
+        self.latin = latin
+        self.cjk = cjk
+
+    def __call__(self, size: int, weight: int) -> ImageFont.FreeTypeFont:
+        if self.cjk is None:
+            font = ImageFont.truetype(str(self.latin), size * SCALE)
+            font.set_variation_by_axes([weight])
+            return font
+        regular, bold = self.cjk
+        return ImageFont.truetype(str(bold if weight >= 600 else regular), size * SCALE, index=0)
+
+
+def cjk_faces(spec: tuple[str, str] | None, font_dir: Path) -> tuple[Path, Path] | None:
+    if spec is None:
+        return None
+    regular, bold = (font_dir / name for name in spec)
+    missing = [str(path) for path in (regular, bold) if not path.exists()]
+    if missing:
+        raise SystemExit(f"system font not found: {missing}\nPass --font-dir, or edit LANGS.")
+    return regular, bold
 
 
 def backdrop() -> Image.Image:
@@ -151,10 +228,8 @@ def area_mask(height_px: int, fade_from: int, fade_to: int) -> Image.Image:
     return ImageChops.multiply(mask, row.resize((WIDTH * SCALE, HEIGHT * SCALE)))
 
 
-def main() -> None:
-    args = parse_args()
-    curves, n_months, n_tags = load_curves(Path(args.index_dir))
-    ttf = load_font(Path(args.font))
+def render(spec: dict, curves, n_months: int, n_tags: int, ttf: Path, font_dir: Path, out_dir: Path) -> Path:
+    sized = Faces(ttf, cjk_faces(spec["fonts"], font_dir))
     s = SCALE
 
     image = backdrop()
@@ -210,7 +285,7 @@ def main() -> None:
             ys[i] = min(ys[i], ys[i + 1] - gap)
         ys = [max(y, lo) for y in ys]
 
-    label_font = sized(ttf, 15, 500)
+    label_font = sized(15, 500)   # tag slugs are Latin in every language
     for (_, label, colour), y in zip(ends, ys):
         draw.ellipse(
             [((plot_right + 14) * s, (y - 3) * s), ((plot_right + 20) * s, (y + 3) * s)],
@@ -218,24 +293,32 @@ def main() -> None:
         )
         draw.text(((plot_right + 30) * s, (y - 9) * s), label, font=label_font, fill=colour)
 
-    draw.text((MARGIN * s, 88 * s), "Danbooru Tag Index", font=sized(ttf, 56, 680), fill=TEXT)
-    draw.text(
-        (MARGIN * s, 172 * s),
-        "Twenty years of anime tag popularity, month by month",
-        font=sized(ttf, 26, 400),
-        fill=MUTED,
-    )
+    draw.text((MARGIN * s, 88 * s), spec["title"], font=sized(spec["title_size"], 680), fill=TEXT)
+    draw.text((MARGIN * s, 172 * s), spec["lead"], font=sized(26, 400), fill=MUTED)
     draw.text(
         (MARGIN * s, 218 * s),
-        f"{n_tags:,} tags   ·   {n_months} months   ·   three normalisations   ·   five languages",
-        font=sized(ttf, 18, 450),
+        spec["meta"].format(tags=f"{n_tags:,}", months=n_months),
+        font=sized(18, 450),
         fill=DIM,
     )
 
-    out = Path(args.output)
+    name = "og.png" if spec["slug"] is None else f"og-{spec['slug']}.png"
+    out = out_dir / name
     out.parent.mkdir(parents=True, exist_ok=True)
     image.convert("RGB").resize((WIDTH, HEIGHT), Image.Resampling.LANCZOS).save(out, optimize=True)
-    print(f"{out}  {out.stat().st_size / 1024:.0f} KB  ({WIDTH}x{HEIGHT})", file=sys.stderr)
+    return out
+
+
+def main() -> None:
+    args = parse_args()
+    curves, n_months, n_tags = load_curves(Path(args.index_dir))
+    ttf = load_font(Path(args.font))
+    out_dir, font_dir = Path(args.out_dir), Path(args.font_dir)
+
+    wanted = [args.lang] if args.lang else list(LANGS)
+    for lang in wanted:
+        out = render(LANGS[lang], curves, n_months, n_tags, ttf, font_dir, out_dir)
+        print(f"{lang:8} {out}  {out.stat().st_size / 1024:.0f} KB", file=sys.stderr)
 
 
 if __name__ == "__main__":

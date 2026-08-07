@@ -75,16 +75,14 @@ jobs:
       - name: Build bundle
         run: uv run python scripts/export_index_bundle.py
 
+      # Copies the static files and writes one page per UI language: a crawler
+      # never runs the language switch, so each language needs its own URL with
+      # its own title, description and card. Also stamps the sitemap with the
+      # build date, which is why it is generated rather than committed.
       - name: Assemble the site
         run: |
-          mkdir -p site
-          cp web/index.html web/og.png web/robots.txt site/
-          cp -r web/fonts site/
-          cp data/index/index_bundle.bin data/index/index_bundle.json site/
-          # Generated rather than committed: it carries the build date, and a
-          # committed one would go stale on every refresh that touches no file.
-          printf '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url>\n    <loc>https://jannchie.github.io/danbooru-tag-index/</loc>\n    <lastmod>%s</lastmod>\n  </url>\n</urlset>\n' "$(date -u +%F)" > site/sitemap.xml
-          ls -la site
+          uv run python scripts/build_site.py --out site
+          ls -R site
 
       - uses: actions/upload-pages-artifact@v3
         if: github.ref_name == github.event.repository.default_branch && github.event_name != 'pull_request'
