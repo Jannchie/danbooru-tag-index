@@ -467,13 +467,14 @@ const BUILTIN = [
   },
   {
     // Eight shows whose peaks land in 2006, 2009, 2011, 2013, 2017, 2019, 2022
-    // and 2023 -- one per era, and the only preset on a log axis, because
-    // haruhi's 7.6 against kimetsu's 0.37 is twenty-fold and a linear scale
-    // would flatten the later half of the story into the baseline.
+    // and 2023 -- one per era. Raw and linear: a breakout is a spike, and both
+    // smoothing and a log axis are ways of not showing one at full height. The
+    // cost is honest -- haruhi's 7.6 against kimetsu's 0.37 means the later
+    // shows sit low in the frame, which is itself part of the finding.
     id: "hegemon",
     tags: ["suzumiya_haruhi_no_yuuutsu", "k-on!", "mahou_shoujo_madoka_magica", "shingeki_no_kyojin",
            "kemono_friends", "kimetsu_no_yaiba", "bocchi_the_rock!", "sousou_no_frieren"],
-    metric: "rel", scale: "log", smooth: 12, range: 0,
+    metric: "rel", scale: "lin", smooth: 0, range: 0,
     name: { zh_hans: "历代霸权番", zh_hant: "歷代霸權番", ja: "覇権アニメの系譜", en: "Breakout anime by era", ko: "시대별 패권 애니" },
   },
   {
@@ -488,12 +489,13 @@ const BUILTIN = [
   },
   {
     // tsundere and yandere peak in 2010-2011 and are a tenth of that now, while
-    // gyaru peaks in 2022 -- the archetypes turn over like the franchises do.
+    // gyaru peaks in 2022 and jirai_kei only exists after 2020 -- the archetypes
+    // turn over like the franchises do, and new ones arrive.
     // Share, not the relative index: these are general tags, which co-occur
     // freely rather than competing for one slot on a post.
     // Smoothed hard on purpose. Even gyaru, the largest, sees ~116 posts a
     // month, so a raw month carries about +-44% of counting noise.
-    id: "traits", tags: ["tsundere", "yandere", "gyaru", "tomboy"],
+    id: "traits", tags: ["tsundere", "yandere", "gyaru", "tomboy", "jirai_kei"],
     metric: "share", scale: "lin", smooth: 12, range: 0,
     name: { zh_hans: "人设风潮", zh_hant: "人設風潮", ja: "萌え属性の変遷", en: "Character archetypes", ko: "캐릭터 유형" },
   },
