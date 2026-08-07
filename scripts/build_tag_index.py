@@ -352,10 +352,12 @@ def write_outputs(staging: duckdb.DuckDBPyConnection, output_dir: Path, dim_tabl
     # This exists because a plain site-wide share is diluted by the growth of the
     # tag universe itself: copyright tags compete for one finite pool of monthly
     # uploads, so a franchise with an unchanged following still loses share as
-    # the field fragments (n_eff for copyright went 12 -> 56 between 2010 and
-    # 2026). Dividing the within-category share by the average competitor's share
-    # -- i.e. multiplying by n_eff -- removes that, giving "how many times the
-    # size of a typical competitor this tag was", where 1.0 is exactly average.
+    # the field fragments (n_eff for copyright went 13 -> 56 between 2010 and
+    # 2026). n_eff is published rather than a finished index because the client
+    # has to take the tag's own s^2 out of HHI before dividing: a tag included in
+    # its own benchmark is measured against itself, and past ~7% share that term
+    # dominates and the index starts falling as the tag grows. See valuesFor()
+    # in web/index.html.
     category_monthly_path = copy_parquet(
         staging,
         output_dir / "fact_category_monthly.parquet",

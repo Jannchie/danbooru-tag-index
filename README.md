@@ -92,33 +92,43 @@ volume grows year over year, so it mostly tracks the platform's size.
 tags that co-occur freely: `1girl` sits at ~7200 (72% of posts) for twenty years,
 which is exactly the flat line it should be.
 
-**Relative** — `(tag posts / category posts) × n_eff`, where `n_eff = 1/HHI` is
-the effective number of equally sized competitors that month. **1.0 means "the
-size of a typical tag in this category"**.
+**Relative** — the tag's within-category share divided by the typical size of
+the tags it competes with: `s / (HHI − s²)`, where `s` is that share and
+`HHI = 1/n_eff` is the category's concentration. **1.0 means "the size of a
+typical competitor that month"**.
+
+The `− s²` is not decoration. HHI sums every tag's squared share including this
+one, so dividing by it plain would measure a tag partly against itself. Past
+about 7% share the self term dominates and `s/HHI` approaches `1/s` — it starts
+*falling* as the tag grows. That is not a rounding error at the top of the
+table: `original` holds 42% of copyright's HHI, and `touhou` held 83% of it in
+2010. Subtracting the tag's own term leaves the competitors' concentration and
+makes the index monotone again.
 
 The third metric exists because share has a second bias that normalising by total
 posts does not fix. Copyright tags are near mutually exclusive — an image usually
 belongs to one franchise — so they compete for one finite pool of monthly uploads.
 As the field fragments, every franchise's share falls even if its following is
-unchanged. It fragmented a lot: `n_eff` for copyright went **12 → 56** between
-2010 and 2026, and for character tags **181 → 1347**.
+unchanged. It fragmented a lot: `n_eff` for copyright went **13 → 56** between
+2010 and 2026, and for character tags **183 → 1361**.
 
 That distortion is big enough to invert conclusions. `touhou`'s share fell 1648 →
 390 (2015 → 2024), reading as a 76% collapse; its relative index over the same
-span went 2.22 → 1.46, and by 2026 it is at **2.65, a decade high**. Meanwhile
-`kantai_collection` fell 2.84 → 0.55 on the relative index too — that decline is
-real, just 5× rather than the 15× share implied. Use share for general tags and
-relative for copyright/character.
+span went 3.14 → 1.53, and 2026 brings it back to **2.97 — level with 2016's
+2.94**, not a recovery to anywhere new. Meanwhile `kantai_collection` fell
+5.45 → 0.68 on the relative index too: that decline is real, just 8× rather than
+the 12× share implied. Use share for general tags and relative for
+copyright/character.
 
 ```sql
--- relative index: 1.0 = the size of a typical tag in the same category
+-- relative index: 1.0 = the size of a typical competitor in the same category
 WITH per_month AS (
-    SELECT d.name, d.category, m.month, m.posts,
-           SUM(m.posts) OVER (PARTITION BY d.category, m.month) AS cat_posts
+    SELECT d.name, d.category, m.month,
+           m.posts * 1.0 / SUM(m.posts) OVER (PARTITION BY d.category, m.month) AS s
     FROM read_parquet('data/index/fact_tag_monthly.parquet') m
     JOIN read_parquet('data/index/dim_tag.parquet') d USING (tag_id)
 )
-SELECT p.month, ROUND(p.posts / p.cat_posts * c.n_eff, 2) AS relative
+SELECT p.month, ROUND(p.s / (1 / c.n_eff - p.s * p.s), 2) AS relative
 FROM per_month p
 JOIN read_parquet('data/index/fact_category_monthly.parquet') c
   USING (category, month)

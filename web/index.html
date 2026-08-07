@@ -361,31 +361,31 @@ const UI = {
     rel:"相对指数", share:"份额", posts:"投稿量", linear:"线性", log:"对数",
     smooth:"平滑", raw:"原始", mo:"{n} 月", all:"全部", y10:"10年", y5:"5年", y2:"2年",
     empty:"搜索标签以添加曲线", limit:"最多 {n} 条", tags:"个标签", posts_total:"篇投稿",
-    relUnit:"相对同类均值", shareUnit:"万分比", postsUnit:"篇/月", failed:"加载失败：", updated:"更新于",
+    relUnit:"相对典型同类", shareUnit:"万分比", postsUnit:"篇/月", failed:"加载失败：", updated:"更新于",
     serve:"请从仓库根目录启动本地服务器后访问 /web/：python -m http.server 8000" },
   zh_hant: { title:"Danbooru 標籤指數", loading:"正在載入指數資料…", search:"搜尋標籤：初音未來 / hatsune_miku / けものみみ",
     rel:"相對指數", share:"份額", posts:"投稿量", linear:"線性", log:"對數",
     smooth:"平滑", raw:"原始", mo:"{n} 月", all:"全部", y10:"10年", y5:"5年", y2:"2年",
     empty:"搜尋標籤以加入曲線", limit:"最多 {n} 條", tags:"個標籤", posts_total:"篇投稿",
-    relUnit:"相對同類均值", shareUnit:"萬分比", postsUnit:"篇/月", failed:"載入失敗：", updated:"更新於",
+    relUnit:"相對典型同類", shareUnit:"萬分比", postsUnit:"篇/月", failed:"載入失敗：", updated:"更新於",
     serve:"請從倉庫根目錄啟動本機伺服器後存取 /web/：python -m http.server 8000" },
   ja: { title:"Danbooru タグ指数", loading:"指数データを読み込み中…", search:"タグを検索：初音ミク / hatsune_miku / けものみみ",
     rel:"相対指数", share:"シェア", posts:"投稿数", linear:"線形", log:"対数",
     smooth:"平滑化", raw:"生値", mo:"{n}ヶ月", all:"全期間", y10:"10年", y5:"5年", y2:"2年",
     empty:"タグを検索して追加", limit:"最大 {n} 件", tags:"件のタグ", posts_total:"件の投稿",
-    relUnit:"同カテゴリ平均比", shareUnit:"万分率", postsUnit:"件/月", failed:"読み込み失敗：", updated:"更新",
+    relUnit:"同カテゴリ標準比", shareUnit:"万分率", postsUnit:"件/月", failed:"読み込み失敗：", updated:"更新",
     serve:"リポジトリ直下でローカルサーバーを起動し /web/ を開いてください：python -m http.server 8000" },
   en: { title:"Danbooru Tag Index", loading:"Loading index data…", search:"Search tags: hatsune_miku / 初音ミク / けものみみ",
     rel:"Relative", share:"Share", posts:"Posts", linear:"Linear", log:"Log",
     smooth:"Smoothing", raw:"Raw", mo:"{n} mo", all:"All", y10:"10y", y5:"5y", y2:"2y",
     empty:"Search for tags to plot", limit:"Max {n}", tags:"tags", posts_total:"posts",
-    relUnit:"vs category average", shareUnit:"per 10k", postsUnit:"posts/mo", failed:"Failed to load: ", updated:"Updated",
+    relUnit:"vs typical peer", shareUnit:"per 10k", postsUnit:"posts/mo", failed:"Failed to load: ", updated:"Updated",
     serve:"Serve the repo root and open /web/: python -m http.server 8000" },
   ko: { title:"Danbooru 태그 지수", loading:"지수 데이터를 불러오는 중…", search:"태그 검색: 하츠네미쿠 / hatsune_miku / けものみみ",
     rel:"상대 지수", share:"점유율", posts:"게시물", linear:"선형", log:"로그",
     smooth:"평활화", raw:"원본", mo:"{n}개월", all:"전체", y10:"10년", y5:"5년", y2:"2년",
     empty:"태그를 검색해 추가하세요", limit:"최대 {n}개", tags:"개 태그", posts_total:"개 게시물",
-    relUnit:"동일 분류 평균 대비", shareUnit:"만분율", postsUnit:"개/월", failed:"불러오기 실패: ", updated:"업데이트",
+    relUnit:"동일 분류 표준 대비", shareUnit:"만분율", postsUnit:"개/월", failed:"불러오기 실패: ", updated:"업데이트",
     serve:"저장소 루트에서 로컬 서버를 실행한 뒤 /web/ 을 여세요: python -m http.server 8000" },
 };
 const LOCALE = { zh_hans: "zh-CN", zh_hant: "zh-TW", ja: "ja-JP", en: "en-US", ko: "ko-KR" };
@@ -628,10 +628,18 @@ const nameOf = (idx) => state.bundle.display(idx, state.lang);
 /**
  * Metric values across the whole month axis.
  *
- * `rel` divides the tag's within-category share by the average competitor's
- * share (i.e. multiplies by n_eff), so 1.0 means "the size of a typical tag in
- * this category that month". Plain share sags as the tag universe expands even
- * when a tag's following is unchanged; this removes that.
+ * `rel` divides the tag's within-category share by the typical size of the tags
+ * it competes with, so 1.0 means "the size of a typical competitor that month".
+ * Plain share sags as the tag universe expands even when a tag's following is
+ * unchanged; this removes that.
+ *
+ * The tag is excluded from its own benchmark. n_eff is 1/HHI over the whole
+ * category, and HHI contains the tag's own s^2 -- so s/HHI made a tag part of
+ * the yardstick it was measured against. That is not a rounding error: once s
+ * passes ~7% the self term dominates and s/HHI approaches 1/s, which falls as
+ * the tag grows. `original` holds 42% of copyright's HHI and touhou held 83% of
+ * it in 2010, both far past the turn. Subtracting s^2 leaves the competitors'
+ * HHI and makes the metric monotone again.
  */
 function valuesFor(idx) {
   const key = `${idx}|${state.metric}|${state.smooth}`;
@@ -655,7 +663,12 @@ function valuesFor(idx) {
     if (!cat) {
       for (let i = 0; i < n; i++) out[i] = b.totals[i] > 0 ? (raw[i] * 10000) / b.totals[i] : 0;
     } else {
-      for (let i = 0; i < n; i++) out[i] = cat.posts[i] > 0 ? (raw[i] / cat.posts[i]) * cat.nEff[i] : 0;
+      for (let i = 0; i < n; i++) {
+        if (!(cat.posts[i] > 0) || !(cat.nEff[i] > 0)) { out[i] = 0; continue; }
+        const s = raw[i] / cat.posts[i];
+        const rivals = 1 / cat.nEff[i] - s * s;   // the category's HHI, less this tag's own term
+        out[i] = rivals > 0 ? s / rivals : 0;     // a lone tag has no competitors to be typical of
+      }
     }
   }
 
