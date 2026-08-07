@@ -451,7 +451,12 @@ const catLabel = (i) => {
 };
 const BUILTIN = [
   {
-    id: "gacha", tags: ["blue_archive", "genshin_impact", "honkai:_star_rail", "zenless_zone_zero"],
+    // Peaks at 2018, 2022, 2023 and two still climbing in 2026 -- the point is
+    // the handover, so the line-up spans the whole run rather than sampling the
+    // current top four. 10 years: FGO launched in 2015 and anything earlier is
+    // empty axis.
+    id: "gacha",
+    tags: ["fate/grand_order", "genshin_impact", "blue_archive", "umamusume", "arknights"],
     metric: "rel", scale: "lin", smooth: 6, range: 120,
     name: { zh_hans: "手游时代", zh_hant: "手遊時代", ja: "ソシャゲ時代", en: "The gacha era", ko: "가챠 시대" },
   },
@@ -482,9 +487,15 @@ const BUILTIN = [
     name: { zh_hans: "长青 IP", zh_hant: "長青 IP", ja: "定番シリーズ", en: "The evergreens", ko: "스테디셀러" },
   },
   {
-    id: "traits", tags: ["animal_ears", "twintails", "ponytail", "glasses"],
+    // tsundere and yandere peak in 2010-2011 and are a tenth of that now, while
+    // gyaru peaks in 2022 -- the archetypes turn over like the franchises do.
+    // Share, not the relative index: these are general tags, which co-occur
+    // freely rather than competing for one slot on a post.
+    // Smoothed hard on purpose. Even gyaru, the largest, sees ~116 posts a
+    // month, so a raw month carries about +-44% of counting noise.
+    id: "traits", tags: ["tsundere", "yandere", "gyaru", "tomboy"],
     metric: "share", scale: "lin", smooth: 12, range: 0,
-    name: { zh_hans: "萌属性", zh_hant: "萌屬性", ja: "萌え属性", en: "Character traits", ko: "모에 속성" },
+    name: { zh_hans: "人设风潮", zh_hant: "人設風潮", ja: "萌え属性の変遷", en: "Character archetypes", ko: "캐릭터 유형" },
   },
 ];
 
