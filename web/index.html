@@ -4,12 +4,47 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<title>Danbooru Tag Index</title>
+<title>Danbooru Tag Index — twenty years of anime tag popularity</title>
+
+<!-- The page renders from a binary the crawler will not parse, so everything a
+     crawler gets has to be here. Absolute URLs throughout: og:image is fetched
+     by servers that have no page to resolve a relative path against. -->
+<meta name="description" content="Monthly popularity for 76,000 Danbooru tags since 2005: raw posts, share of the site, and a fragmentation-adjusted index. Searchable in Chinese, Japanese, English and Korean.">
+<link rel="canonical" href="https://jannchie.github.io/danbooru-tag-index/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Danbooru Tag Index">
+<meta property="og:url" content="https://jannchie.github.io/danbooru-tag-index/">
+<meta property="og:title" content="Danbooru Tag Index">
+<meta property="og:description" content="Twenty years of anime tag popularity, month by month. 76,000 tags, three normalisations, five languages.">
+<meta property="og:image" content="https://jannchie.github.io/danbooru-tag-index/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Five tag popularity curves over twenty years, on the dark chart the site draws.">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233987e5' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 17l5-6 4 3 6-8'/%3E%3C/svg%3E">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Dataset",
+  "name": "Danbooru Tag Index",
+  "description": "Monthly post counts for every Danbooru tag above 100 lifetime posts, from 2005-05 onwards, normalised three ways: raw posts, share of all posts, and a within-category index adjusted for how fragmented the category has become.",
+  "url": "https://jannchie.github.io/danbooru-tag-index/",
+  "temporalCoverage": "2005-05/..",
+  "creator": { "@type": "Person", "name": "Jianqi Pan" },
+  "isBasedOn": "https://danbooru.donmai.us/",
+  "keywords": ["danbooru", "anime", "tag popularity", "trends", "time series"],
+  "variableMeasured": ["posts per month", "share per 10000 posts", "relative index vs typical tag in category"]
+}
+</script>
 <style>
   /* One declaration per token: light-dark() resolves against color-scheme, so
      the palette has a single source and the theme toggle only flips a scheme. */
   :root {
     color-scheme: light dark;
+    --latin: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    /* Simplified is the default only because it is the most likely visitor;
+       every language overrides it below. */
+    --cjk: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "Source Han Sans SC", "Noto Sans CJK SC", "Noto Sans SC", sans-serif;
     --surface-0: light-dark(#f4f3f0, #131312);
     --surface-1: light-dark(#fcfcfb, #1a1a19);
     --surface-2: light-dark(#eceae5, #232322);
@@ -37,6 +72,18 @@
   /* A class rule's `display` outranks the UA stylesheet's [hidden] { display: none },
      so every hideable element below needs this to actually hide. */
   [hidden] { display: none !important; }
+  /* Han unification means one codepoint, several correct shapes: 直 and 骨 are
+     drawn differently in Chinese, Japanese and Korean type. A single stack would
+     render one of those audiences' text in another's letterforms, so the stack
+     follows the UI language, which `html[lang]` already tracks. Every face here
+     ships with some OS -- Noto is the Linux entry, not a download. */
+  html[lang="zh-tw"] { --cjk: "PingFang TC", "Microsoft JhengHei UI", "Microsoft JhengHei", "Source Han Sans TC", "Noto Sans CJK TC", "Noto Sans TC", sans-serif; }
+  html[lang="ja-jp"] { --cjk: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic", Meiryo, "Source Han Sans", "Noto Sans CJK JP", "Noto Sans JP", sans-serif; }
+  html[lang="ko-kr"] { --cjk: "Apple SD Gothic Neo", "Malgun Gothic", "Source Han Sans K", "Noto Sans CJK KR", "Noto Sans KR", sans-serif; }
+  /* An English reader still meets Japanese tag names, so the fallback keeps a
+     Han face -- just not one that claims a script the reader did not choose. */
+  html[lang="en-us"] { --cjk: "Hiragino Sans", "Yu Gothic UI", "Microsoft YaHei UI", "Noto Sans CJK JP", sans-serif; }
+
   html, body { margin: 0; height: 100%; overscroll-behavior: none; }
   body {
     height: 100dvh;
@@ -45,7 +92,9 @@
     overflow: hidden;
     background: var(--surface-0);
     color: var(--text-primary);
-    font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans CJK SC", "Malgun Gothic", sans-serif;
+    font-size: 14px;
+    line-height: 1.45;
+    font-family: var(--latin), var(--cjk);
     font-variant-numeric: tabular-nums;
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
@@ -1167,6 +1216,7 @@ function showMeta() {
 function applyLang() {
   fmtInt = new Intl.NumberFormat(LOCALE[state.lang] || "en");
   document.documentElement.lang = (LOCALE[state.lang] || "en").toLowerCase();
+  document.title = t("title");
   document.title = t("title");
   $("t-title").textContent = t("title");
   $("t-loading").textContent = t("loading");

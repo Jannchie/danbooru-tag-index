@@ -78,8 +78,12 @@ jobs:
       - name: Assemble the site
         run: |
           mkdir -p site
-          cp web/index.html site/
+          cp web/index.html web/og.png web/robots.txt site/
           cp data/index/index_bundle.bin data/index/index_bundle.json site/
+          # Generated rather than committed: it carries the build date, and a
+          # committed one would go stale on every refresh that touches no file.
+          printf '%s
+'             '<?xml version="1.0" encoding="UTF-8"?>'             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'             '  <url>'             '    <loc>https://jannchie.github.io/danbooru-tag-index/</loc>'             "    <lastmod>$(date -u +%F)</lastmod>"             '  </url>'             '</urlset>' > site/sitemap.xml
           ls -la site
 
       - uses: actions/upload-pages-artifact@v3
