@@ -461,6 +461,17 @@ const BUILTIN = [
     name: { zh_hans: "舰娘世代交替", zh_hant: "艦娘世代交替", ja: "艦これ以後", en: "Fleet-game succession", ko: "함대 게임 세대교체" },
   },
   {
+    // Eight shows whose peaks land in 2006, 2009, 2011, 2013, 2017, 2019, 2022
+    // and 2023 -- one per era, and the only preset on a log axis, because
+    // haruhi's 7.6 against kimetsu's 0.37 is twenty-fold and a linear scale
+    // would flatten the later half of the story into the baseline.
+    id: "hegemon",
+    tags: ["suzumiya_haruhi_no_yuuutsu", "k-on!", "mahou_shoujo_madoka_magica", "shingeki_no_kyojin",
+           "kemono_friends", "kimetsu_no_yaiba", "bocchi_the_rock!", "sousou_no_frieren"],
+    metric: "rel", scale: "log", smooth: 12, range: 0,
+    name: { zh_hans: "历代霸权番", zh_hant: "歷代霸權番", ja: "覇権アニメの系譜", en: "Breakout anime by era", ko: "시대별 패권 애니" },
+  },
+  {
     id: "vtuber", tags: ["hololive", "nijisanji"],
     metric: "rel", scale: "lin", smooth: 6, range: 120,
     name: { zh_hans: "VTuber 事务所", zh_hant: "VTuber 事務所", ja: "VTuber事務所", en: "VTuber agencies", ko: "VTuber 소속사" },
