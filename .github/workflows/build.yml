@@ -5,7 +5,10 @@ name: build
 # of artifacts to the `data-latest` release. Nothing here opens that database.
 on:
   push:
-    branches: [main]
+    # Both names: `on.push` cannot take an expression, and this repo is on
+    # master while the convention elsewhere is main. The publish gate below
+    # compares against the repository's actual default branch.
+    branches: [main, master]
   pull_request:
   # Stage 1 fires this after uploading fresh artifacts.
   repository_dispatch:
@@ -50,6 +53,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          if ! gh release view data-latest >/dev/null 2>&1; then
+            echo "::error::No 'data-latest' release yet. Stage 1 has never published."
+            echo "Run scripts/refresh.py on the machine holding the metadata database,"
+            echo "then upload its artifacts with the command it prints. See README."
+            exit 1
+          fi
           mkdir -p data/index
           gh release download data-latest --dir data/index --clobber
           # export_tag_translations.py writes these next to the committed
@@ -71,13 +80,13 @@ jobs:
           ls -la site
 
       - uses: actions/upload-pages-artifact@v3
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        if: github.ref_name == github.event.repository.default_branch && github.event_name != 'pull_request'
         with:
           path: site
 
   deploy:
     needs: bundle
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.ref_name == github.event.repository.default_branch && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       pages: write
