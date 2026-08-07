@@ -6,7 +6,8 @@ venv/
 # metadata database (stage 1), *_name_map.json from *_names.json plus the
 # committed LLM output.
 data/index/
-data/*.duckdb
+# 扫描进行中还会有 .duckdb.wal,所以是 duckdb* 而不是 duckdb
+data/*.duckdb*
 data/translations/*_names.json
 data/translations/*_name_map.json
 data/translations/_zh_work/

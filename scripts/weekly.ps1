@@ -32,6 +32,16 @@ function Log($message) {
     Add-Content -Path $log -Value $line -Encoding utf8
 }
 
+# Windows PowerShell 5.1's Tee-Object has no -Encoding and writes UTF-16LE, which
+# against a UTF-8 log produces a file that is half readable and half spaced-out
+# nulls. Route child output through Add-Content instead so one encoding wins.
+function Tee-Log {
+    process {
+        Write-Output $_
+        Add-Content -Path $log -Value $_ -Encoding utf8
+    }
+}
+
 # The scripts print Chinese and CJK names; a cp932/gbk console would throw on
 # them mid-run and kill an otherwise healthy rebuild.
 $env:PYTHONIOENCODING = 'utf-8'
@@ -48,9 +58,9 @@ try {
     if (-not $SkipSync) {
         Log 'sync: posts'
         Push-Location $MetadataRepo
-        uv run python scripts/update_danbooru.py 2>&1 | Tee-Object -FilePath $log -Append
+        uv run python scripts/update_danbooru.py 2>&1 | Tee-Log
         Log 'sync: wiki, tags, aliases, artists'
-        uv run python scripts/update_wiki.py 2>&1 | Tee-Object -FilePath $log -Append
+        uv run python scripts/update_wiki.py 2>&1 | Tee-Log
         Pop-Location
     } else {
         Log 'sync: skipped'
@@ -58,7 +68,7 @@ try {
 
     Log 'rebuild + publish'
     Push-Location $IndexRepo
-    uv run python scripts/refresh.py --publish 2>&1 | Tee-Object -FilePath $log -Append
+    uv run python scripts/refresh.py --publish 2>&1 | Tee-Log
     Pop-Location
 
     Log ("done in {0:n1} min -- {1}" -f ((Get-Date) - $started).TotalMinutes, $log)
