@@ -1000,6 +1000,16 @@ function showSmooth() {
   $("smooth-v").textContent = state.smooth <= 1 ? t("raw") : t("mo").replace("{n}", state.smooth);
 }
 
+/** Coverage and totals. The month range is the charted one -- both ends can be
+ *  partial, and naming a month the chart does not draw would claim data that is
+ *  not there. */
+function showMeta() {
+  const b = state.bundle;
+  if (!b) return;
+  const posts = b.totals.slice(b.firstComplete, b.lastComplete + 1).reduce((a, c) => a + c, 0);
+  $("meta").textContent = `${fmtInt.format(b.nTags)} ${t("tags")} · ${monthLabel(b.firstComplete)}–${monthLabel(b.lastComplete)} · ${fmtInt.format(posts)} ${t("posts_total")}`;
+}
+
 function applyLang() {
   fmtInt = new Intl.NumberFormat(LOCALE[state.lang] || "en");
   document.documentElement.lang = (LOCALE[state.lang] || "en").toLowerCase();
@@ -1013,7 +1023,7 @@ function applyLang() {
   $("chart").setAttribute("aria-label", t("title"));
   const b = state.bundle;
   if (b) {
-    $("meta").textContent = `${fmtInt.format(b.nTags)} ${t("tags")} · ${monthLabel(0)}–${monthLabel(b.completeMonths - 1)} · ${fmtInt.format(b.totals.reduce((a, c) => a + c, 0))} ${t("posts_total")}`;
+    showMeta();
     renderSeriesList();
     render();
     if ($("q").value) renderSuggest($("q").value);
@@ -1133,6 +1143,7 @@ async function boot() {
   const seed = fromHash.length ? fromHash : ["hatsune_miku", "genshin_impact", "blue_archive", "kantai_collection"].map((n) => state.bundle.findByName(n));
   seed.slice(0, MAX_SERIES).forEach((i) => addTag(i, true));   // one render after the loop, not four
   syncHash();
+  showMeta();   // applyLang ran before the bundle existed; this is its first real chance
 
   const q = $("q");
   let debounce = 0;
