@@ -62,14 +62,16 @@
   h1 { font-size: 14.5px; font-weight: 620; margin: 0; letter-spacing: -0.01em; white-space: nowrap; }
   .meta { color: var(--text-muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .stamp { color: var(--text-muted); font-size: 11.5px; white-space: nowrap; flex: none; }
-  .stamp.link { text-decoration: none; border-bottom: 1px solid var(--hairline-strong); }
-  .stamp.link:hover { color: var(--text-primary); border-bottom-color: currentColor; }
   .meta:empty, .stamp:empty { display: none; }
   .btn {
     background: var(--surface-1); border: 1px solid var(--hairline); border-radius: 6px;
     padding: 5px 8px; cursor: pointer; color: var(--text-secondary); font-size: 12px; flex: none;
   }
   .btn:hover { border-color: var(--hairline-strong); color: var(--text-primary); }
+  /* An icon has no baseline to sit on, so the box has to do the centring that
+     line-height did for a glyph. select.btn keeps the native control's layout. */
+  a.btn, button.btn { display: inline-flex; align-items: center; justify-content: center; padding: 5px 6px; }
+  .btn svg { display: block; width: 15px; height: 15px; }
 
   /* ---- search ---- */
   .find { flex: 1 1 240px; position: relative; min-width: 0; }
@@ -183,8 +185,12 @@
   .s .k { width: 14px; height: 2.5px; border-radius: 2px; flex: none; }
   .s .n { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; color: var(--text-secondary); }
   .s .v { font-size: 12.5px; font-weight: 620; flex: none; }
-  .s .x { border: 0; background: none; color: var(--text-muted); cursor: pointer; padding: 0 2px; line-height: 1; font-size: 15px; flex: none; }
+  .s .x { border: 0; background: none; color: var(--text-muted); cursor: pointer; padding: 0; flex: none; display: flex; align-items: center; }
+  .s .x svg { width: 13px; height: 13px; }
   .s .x:hover { color: var(--text-primary); }
+  /* The legend is denser than the suggest list, so the badge sheds its border
+     and keeps only the muted colour to stay out of the value's way. */
+  .s .cat { font-size: 10.5px; color: var(--text-muted); flex: none; }
   .empty { color: var(--text-muted); font-size: 12.5px; padding: 10px 6px; }
 
   /* ---- boot ---- */
@@ -246,7 +252,7 @@
     </div>
     <span class="meta" id="meta"></span>
     <span class="stamp" id="stamp"></span>
-    <a class="stamp link" id="repo" href="https://github.com/Jannchie/danbooru-tag-index" target="_blank" rel="noopener">GitHub</a>
+    <a class="btn" id="repo" href="https://github.com/Jannchie/danbooru-tag-index" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"></a>
     <select class="btn" id="lang" aria-label="Language">
       <option value="zh_hans">简体</option>
       <option value="zh_hant">繁體</option>
@@ -254,7 +260,7 @@
       <option value="en">English</option>
       <option value="ko">한국어</option>
     </select>
-    <button class="btn" id="theme" aria-label="Theme">◐</button>
+    <button class="btn" id="theme" aria-label="Theme"></button>
   </div>
 
   <div class="boot" id="boot">
@@ -303,7 +309,45 @@ const SEGMENTS = ["metric", "scale", "range"];   // element id doubles as the st
 const LANGS = ["zh_hans", "zh_hant", "ja", "en", "ko"];   // slot order is part of the format
 const ALIAS_CODE = 255;
 const CAT_NAME = { 0: "general", 1: "artist", 3: "copyright", 4: "character", 5: "meta" };
+const CAT_I18N = {
+  zh_hans: { general: "通用", artist: "画师", copyright: "作品", character: "角色", meta: "元数据" },
+  zh_hant: { general: "通用", artist: "畫師", copyright: "作品", character: "角色", meta: "元數據" },
+  ja:      { general: "一般", artist: "絵師", copyright: "作品", character: "キャラ", meta: "メタ" },
+  en:      { general: "General", artist: "Artist", copyright: "Copyright", character: "Character", meta: "Meta" },
+  ko:      { general: "일반", artist: "작가", copyright: "작품", character: "캐릭터", meta: "메타" },
+};
+const catLabel = (i) => {
+  const slug = CAT_NAME[state.bundle.categoryOf(i)];
+  return slug ? (CAT_I18N[state.lang] || CAT_I18N.en)[slug] || slug : "";
+};
 const DEC = new TextDecoder();
+
+// Lucide paths, inlined: the page has no build step and no network budget for an
+// icon font. Round caps and joins are what make the set read as one family.
+const ICONS = {
+  github: ["M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4", "M9 18c-4.51 2-5-2-7-2"],
+  contrast: ["M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20", "M12 18a6 6 0 0 0 0-12z"],
+  x: ["M18 6 6 18", "m6 6 12 12"],
+};
+
+function icon(name) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "2");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  svg.setAttribute("aria-hidden", "true");
+  for (const d of ICONS[name]) {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", d);
+    // The half-disc reads as a fill, not an outline -- it is the theme state.
+    if (name === "contrast" && d.startsWith("M12 18")) path.setAttribute("fill", "currentColor");
+    svg.appendChild(path);
+  }
+  return svg;
+}
 const CACHE_LIMIT = 512;
 
 // Binary layout, mirroring HEADER_FORMAT / RECORD_FORMAT in export_index_bundle.py.
@@ -844,13 +888,14 @@ function renderSeriesList() {
     key.style.background = `var(--s${p.slot})`;
     const value = el("span", "v", "—");
     value.dataset.slot = String(p.slot);
-    const close = el("button", "x", "×");
+    const close = el("button", "x");
+    close.appendChild(icon("x"));
     close.setAttribute("aria-label", "remove");
     close.onclick = (e) => { e.stopPropagation(); removeTag(p.idx); };
     const toggle = () => { commit(); p.hidden = !p.hidden; renderSeriesList(); render(); };
     row.onclick = toggle;
     row.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } };
-    row.append(key, el("span", "n", nameOf(p.idx)), value, close);
+    row.append(key, el("span", "n", nameOf(p.idx)), el("span", "cat", catLabel(p.idx)), value, close);
     box.appendChild(row);
   }
   if (state.picked.length >= MAX_SERIES) box.appendChild(el("div", "empty", t("limit").replace("{n}", MAX_SERIES)));
@@ -956,7 +1001,7 @@ function renderSuggest(query) {
       sub.appendChild(marked(secondary.join(" · "), query));
       main.appendChild(sub);
     }
-    row.append(main, el("span", "cat", CAT_NAME[state.bundle.categoryOf(hit.i)] || "tag"), el("span", "ct", fmtInt.format(state.bundle.postCountOf(hit.i))));
+    row.append(main, el("span", "cat", catLabel(hit.i) || "tag"), el("span", "ct", fmtInt.format(state.bundle.postCountOf(hit.i))));
     row.onmousedown = (e) => { e.preventDefault(); pick(k); };
     box.appendChild(row);
   });
@@ -1119,6 +1164,8 @@ async function boot() {
   state.lang = detectLang();
   state.theme = localStorage.getItem("dbix-theme") || null;
   $("lang").value = state.lang;
+  $("repo").appendChild(icon("github"));
+  $("theme").appendChild(icon("contrast"));
   applyTheme();
   applyLang();
 
