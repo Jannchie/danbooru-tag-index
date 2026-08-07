@@ -5,12 +5,10 @@
 # belong here. Neither repo reaches into the other's scripts -- this driver is
 # the only thing that knows both exist.
 #
-# Credentials come from the environment, never from arguments: anything on the
-# command line lands in the task definition, the process list, and shell history.
-# Set them once, for your user:
-#   [Environment]::SetEnvironmentVariable('DANBOORU_API_KEY', '<key>', 'User')
-#   [Environment]::SetEnvironmentVariable('DANBOORU_LOGIN',   '<user>', 'User')
-# Without them the sync still runs, anonymously and much slower.
+# Credentials come from danbooru_metadata\.env (copy .env.example), never from
+# arguments: anything on the command line lands in the task definition, the
+# process list, and shell history. Without them the sync still runs, anonymously
+# and much slower. Each sync script reports which path it took on its first line.
 
 param(
     [string]$MetadataRepo = 'E:\danbooru_metadata',
@@ -48,11 +46,6 @@ $env:PYTHONIOENCODING = 'utf-8'
 
 $started = Get-Date
 Log "start  metadata=$MetadataRepo  index=$IndexRepo"
-if ($env:DANBOORU_API_KEY -and $env:DANBOORU_LOGIN) {
-    Log "credentials: present (login=$env:DANBOORU_LOGIN)"
-} else {
-    Log "credentials: absent -- syncing anonymously, expect heavier rate limiting"
-}
 
 try {
     if (-not $SkipSync) {
