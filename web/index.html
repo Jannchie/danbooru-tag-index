@@ -228,7 +228,7 @@
      shows the effect as it happens. */
   .slide {
     display: inline-flex; align-items: center; gap: 8px; flex: none;
-    border: 1px solid var(--hairline); border-radius: 6px; padding: 3px 9px 3px 10px;
+    border: 1px solid var(--hairline); border-radius: 6px; padding: 5px 9px 5px 10px;
     font-size: 12.5px; color: var(--text-muted); background: var(--surface-1);
   }
   .slide b { color: var(--text-primary); font-weight: 560; min-width: 3.6em; text-align: right; }
@@ -325,9 +325,19 @@
     .seg button { padding: 6px 9px; font-size: 12px; }
     .when { min-width: 72px; padding: 6px 9px; }
     .when b { font-size: 12.5px; }
-    .series { grid-template-columns: 1fr 1fr; padding: 5px 6px; align-content: start; }
-    .s { padding: 5px; gap: 6px; }
-    .s .n, .s .v { font-size: 12px; }
+    .series {
+      display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
+      overscroll-behavior-x: contain; align-items: center; gap: 10px; padding: 5px 8px;
+      scrollbar-width: none;
+    }
+    .series::-webkit-scrollbar { display: none; }
+    .s { flex: none; padding: 3px 4px; gap: 5px; }
+    .s .main { flex: none; }
+    .s .n, .s .v { font-size: 11.5px; }
+    /* The category is what the row can afford to lose: the colour swatch and
+       the name already identify the series, and the tag list in the sidebar
+       says which category each preset is. */
+    .s .sub { display: none; }
     .plot { padding: 4px 3px 2px; }
 
     /* A time series wants to be wider than tall. Left to fill a portrait phone
@@ -336,7 +346,7 @@
        to the readout, which drew a 200px panel around 60px of labels; it goes to
        the comparison list now, which is content rather than a stretched box. */
     .plot { flex: 0 0 auto; height: min(42dvh, 68vw); }
-    .readout { flex: none; max-height: 34dvh; }
+    .readout { flex: none; }
     .app { flex: 1 1 auto; border-bottom: 1px solid var(--hairline); border-radius: 0 0 10px 10px; margin-bottom: 14px; }
     .main { flex: none; }
     .side { flex: 1 1 auto; border-top: 1px solid var(--hairline); }
@@ -350,15 +360,11 @@
        something come first. It stays reachable in the page's metadata. */
     .stamp { display: none; }
   }
-  @media (max-width: 380px) {
-    .series { grid-template-columns: 1fr; }
-  }
   /* Landscape phones: vertical space is the scarce axis, so shed chrome height. */
   @media (max-height: 520px) {
     .bar { padding: 6px 10px; }
     #q { padding: 6px 10px; }
     .ctl { padding: 6px 9px; }
-    .readout { max-height: 40dvh; }
     .series { padding: 4px 6px; }
     .plot { flex: 1 1 auto; height: auto; }
   }

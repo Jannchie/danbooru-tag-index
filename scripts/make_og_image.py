@@ -31,7 +31,7 @@ import tempfile
 from pathlib import Path
 
 import duckdb
-from PIL import Image, ImageChops, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont
 
 from _paths import INDEX_DIR
 
@@ -54,47 +54,46 @@ SERIES = [
 ]
 
 PLOT_TOP, PLOT_BOTTOM = 300, 584
-LABEL_GUTTER = 232   # right-hand strip the curves stop short of, for end labels
 
 # Slug is the file suffix and the site's sub-path; None means the root page.
 LANGS = {
     "en": {
         "slug": None,
         "title": "Danbooru Tag Index",
-        "lead": "Twenty years of anime tag popularity, month by month",
-        "meta": "{tags} tags   ·   {months} months   ·   three normalisations   ·   five languages",
+        "lead": "Anime tag popularity, month by month, since 2005",
+        "meta": "three normalisations   ·   searchable in five languages",
         "fonts": None,
         "title_size": 56,
     },
     "zh_hans": {
         "slug": "zh-hans",
         "title": "Danbooru 标签指数",
-        "lead": "二十年二次元标签流行度，逐月记录",
-        "meta": "{tags} 个标签   ·   {months} 个月   ·   三种归一化   ·   五种语言",
+        "lead": "二次元标签流行度，逐月记录，自 2005 年起",
+        "meta": "三种归一化口径   ·   五种语言搜索",
         "fonts": ("msyh.ttc", "msyhbd.ttc"),
         "title_size": 52,
     },
     "zh_hant": {
         "slug": "zh-hant",
         "title": "Danbooru 標籤指數",
-        "lead": "二十年二次元標籤流行度，逐月記錄",
-        "meta": "{tags} 個標籤   ·   {months} 個月   ·   三種歸一化   ·   五種語言",
+        "lead": "二次元標籤流行度，逐月記錄，自 2005 年起",
+        "meta": "三種歸一化口徑   ·   五種語言搜尋",
         "fonts": ("msjh.ttc", "msjhbd.ttc"),
         "title_size": 52,
     },
     "ja": {
         "slug": "ja",
         "title": "Danbooru タグ指数",
-        "lead": "20年分のタグ人気度を、月ごとに",
-        "meta": "{tags} タグ   ·   {months} ヶ月   ·   3つの正規化   ·   5言語",
+        "lead": "タグ人気度の推移を、2005年から月ごとに",
+        "meta": "3つの正規化   ·   5言語で検索",
         "fonts": ("YuGothR.ttc", "YuGothB.ttc"),
         "title_size": 50,
     },
     "ko": {
         "slug": "ko",
         "title": "Danbooru 태그 지수",
-        "lead": "20년간의 태그 인기도, 월 단위로",
-        "meta": "{tags}개 태그   ·   {months}개월   ·   3가지 정규화   ·   5개 언어",
+        "lead": "태그 인기도의 흐름, 2005년부터 월 단위로",
+        "meta": "3가지 정규화   ·   5개 언어 검색",
         "fonts": ("malgun.ttf", "malgunbd.ttf"),
         "title_size": 52,
     },
@@ -205,44 +204,30 @@ def backdrop() -> Image.Image:
     return column.resize((WIDTH * SCALE, HEIGHT * SCALE)).convert("RGBA")
 
 
-def area_mask(height_px: int, fade_from: int, fade_to: int) -> Image.Image:
-    """Alpha for the area fills: heavy at the curve, gone by the baseline.
+def tracked(draw: ImageDraw.ImageDraw, xy, text: str, font, fill, spacing: float) -> None:
+    """Draw with letter-spacing, which Pillow has no setting for.
 
-    The horizontal term matters as much as the vertical one. Closing each fill
-    to the baseline at its last month leaves a vertical wall down the right of
-    the plot -- a hard edge that reads as a chart border nobody drew. Fading the
-    last stretch to nothing lets the areas end without one, while the lines stay
-    at full strength so the end labels still mark a real position.
+    Only the bottom line uses it. Opening up a small line of secondary text is
+    what separates it from the sentence above rather than making it a smaller
+    copy of one.
     """
-    column = Image.new("L", (1, height_px))
-    for y in range(height_px):
-        t = y / max(1, height_px - 1)
-        column.putpixel((0, y), round(255 * (0.34 * (1 - t) + 0.03 * t)))
-    mask = Image.new("L", (WIDTH * SCALE, HEIGHT * SCALE), 0)
-    mask.paste(column.resize((WIDTH * SCALE, height_px)), (0, PLOT_TOP * SCALE))
-
-    row = Image.new("L", (WIDTH, 1), 255)
-    for x in range(fade_from, WIDTH):
-        t = min(1.0, (x - fade_from) / max(1, fade_to - fade_from))
-        row.putpixel((x, 0), round(255 * (1 - t)))
-    return ImageChops.multiply(mask, row.resize((WIDTH * SCALE, HEIGHT * SCALE)))
+    x, y = xy
+    for ch in text:
+        draw.text((x, y), ch, font=font, fill=fill)
+        x += draw.textlength(ch, font=font) + spacing
 
 
-def render(spec: dict, curves, n_months: int, n_tags: int, ttf: Path, font_dir: Path, out_dir: Path) -> Path:
+def render(spec: dict, curves, n_months: int, ttf: Path, font_dir: Path, out_dir: Path) -> Path:
     sized = Faces(ttf, cjk_faces(spec["fonts"], font_dir))
     s = SCALE
 
     image = backdrop()
     draw = ImageDraw.Draw(image)
 
-    plot_right = WIDTH - LABEL_GUTTER
     peak = max(max(smooth(curves[slug])) for slug, _, _ in SERIES)
-    ramp = area_mask((PLOT_BOTTOM - PLOT_TOP) * s, plot_right - 150, plot_right)
-
     draw.line([(0, PLOT_BOTTOM * s), (WIDTH * s, PLOT_BOTTOM * s)], fill=FAINT, width=1 * s)
 
-    ends = []
-    for slug, label, colour in SERIES:
+    for slug, _label, colour in SERIES:
         raw = curves[slug]
         # Months before the tag existed are zeros, and drawing them lays a flat
         # rule along the baseline that reads as data. The start comes from the
@@ -251,56 +236,18 @@ def render(spec: dict, curves, n_months: int, n_tags: int, ttf: Path, font_dir: 
         start = next((i for i, v in enumerate(raw) if v > 0), len(raw))
         values = smooth(raw)
         points = [
-            (((i / (n_months - 1)) * plot_right) * s,
+            (((i / (n_months - 1)) * WIDTH) * s,
              (PLOT_BOTTOM - ((values[i] / peak) ** 0.5) * (PLOT_BOTTOM - PLOT_TOP)) * s)
             for i in range(start, len(values))
         ]
-        if len(points) < 2:
-            continue
+        if len(points) > 1:
+            draw.line(points, fill=colour, width=3 * s, joint="curve")
 
-        fill = Image.new("RGBA", image.size, (0, 0, 0, 0))
-        ImageDraw.Draw(fill).polygon(
-            [(points[0][0], PLOT_BOTTOM * s), *points, (points[-1][0], PLOT_BOTTOM * s)],
-            fill=(*colour, 255),
-        )
-        fill.putalpha(ImageChops.multiply(fill.getchannel("A"), ramp))
-        image = Image.alpha_composite(image, fill)
-        draw = ImageDraw.Draw(image)
-
-        draw.line(points, fill=colour, width=3 * s, joint="curve")
-        ends.append((points[-1][1] / s, label, colour))
-
-    # End labels, the site's own device for naming a series. Separating them by
-    # pushing down alone drives the lowest ones off the canvas -- four of these
-    # five finish within a few pixels of each other -- so the run is pushed down,
-    # then shifted back up as a block and re-separated upwards if it overflows.
-    ends.sort(key=lambda e: e[0])
-    gap, lo, hi = 27, PLOT_TOP - 8, PLOT_BOTTOM + 8
-    ys = []
-    for y, _, _ in ends:
-        ys.append(max(y, ys[-1] + gap) if ys else y)
-    if ys and ys[-1] > hi:
-        ys = [y - (ys[-1] - hi) for y in ys]
-        for i in range(len(ys) - 2, -1, -1):
-            ys[i] = min(ys[i], ys[i + 1] - gap)
-        ys = [max(y, lo) for y in ys]
-
-    label_font = sized(15, 500)   # tag slugs are Latin in every language
-    for (_, label, colour), y in zip(ends, ys):
-        draw.ellipse(
-            [((plot_right + 14) * s, (y - 3) * s), ((plot_right + 20) * s, (y + 3) * s)],
-            fill=colour,
-        )
-        draw.text(((plot_right + 30) * s, (y - 9) * s), label, font=label_font, fill=colour)
-
-    draw.text((MARGIN * s, 88 * s), spec["title"], font=sized(spec["title_size"], 680), fill=TEXT)
-    draw.text((MARGIN * s, 172 * s), spec["lead"], font=sized(26, 400), fill=MUTED)
-    draw.text(
-        (MARGIN * s, 218 * s),
-        spec["meta"].format(tags=f"{n_tags:,}", months=n_months),
-        font=sized(18, 450),
-        fill=DIM,
-    )
+    # Three steps, each a clear jump from the last -- size, weight and colour all
+    # move together, so the order to read them in is never in question.
+    draw.text((MARGIN * s, 84 * s), spec["title"], font=sized(spec["title_size"], 700), fill=TEXT)
+    draw.text((MARGIN * s, 174 * s), spec["lead"], font=sized(25, 400), fill=MUTED)
+    tracked(draw, (MARGIN * s, 228 * s), spec["meta"], sized(15, 500), DIM, 1.4 * s)
 
     name = "og.png" if spec["slug"] is None else f"og-{spec['slug']}.png"
     out = out_dir / name
@@ -311,13 +258,13 @@ def render(spec: dict, curves, n_months: int, n_tags: int, ttf: Path, font_dir: 
 
 def main() -> None:
     args = parse_args()
-    curves, n_months, n_tags = load_curves(Path(args.index_dir))
+    curves, n_months, _n_tags = load_curves(Path(args.index_dir))
     ttf = load_font(Path(args.font))
     out_dir, font_dir = Path(args.out_dir), Path(args.font_dir)
 
     wanted = [args.lang] if args.lang else list(LANGS)
     for lang in wanted:
-        out = render(LANGS[lang], curves, n_months, n_tags, ttf, font_dir, out_dir)
+        out = render(LANGS[lang], curves, n_months, ttf, font_dir, out_dir)
         print(f"{lang:8} {out}  {out.stat().st_size / 1024:.0f} KB", file=sys.stderr)
 
 
