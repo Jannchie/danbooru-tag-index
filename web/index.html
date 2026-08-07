@@ -1,0 +1,1209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Danbooru Tag Index</title>
+<style>
+  /* One declaration per token: light-dark() resolves against color-scheme, so
+     the palette has a single source and the theme toggle only flips a scheme. */
+  :root {
+    color-scheme: light dark;
+    --surface-0: light-dark(#f4f3f0, #131312);
+    --surface-1: light-dark(#fcfcfb, #1a1a19);
+    --surface-2: light-dark(#eceae5, #232322);
+    --hairline: light-dark(#dedbd4, #333331);
+    --hairline-strong: light-dark(#c6c2b8, #4a4a47);
+    --text-primary: light-dark(#0b0b0b, #ffffff);
+    --text-secondary: light-dark(#52514e, #c3c2b7);
+    --text-muted: light-dark(#78766f, #8d8c84);
+    --accent: light-dark(#2a78d6, #3987e5);
+    --shadow: light-dark(rgba(0,0,0,.13), rgba(0,0,0,.5));
+    /* Validated categorical palette, both modes (see references/palette.md). */
+    --s0: light-dark(#2a78d6, #3987e5);
+    --s1: light-dark(#eb6834, #d95926);
+    --s2: light-dark(#1baf7a, #199e70);
+    --s3: light-dark(#eda100, #c98500);
+    --s4: light-dark(#e87ba4, #d55181);
+    --s5: light-dark(#008300, #008300);
+    --s6: light-dark(#4a3aa7, #9085e9);
+    --s7: light-dark(#e34948, #e66767);
+  }
+  :root[data-theme="light"] { color-scheme: light; }
+  :root[data-theme="dark"] { color-scheme: dark; }
+
+  * { box-sizing: border-box; }
+  /* A class rule's `display` outranks the UA stylesheet's [hidden] { display: none },
+     so every hideable element below needs this to actually hide. */
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; overscroll-behavior: none; }
+  body {
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--surface-0);
+    color: var(--text-primary);
+    font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans CJK SC", "Malgun Gothic", sans-serif;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  button, select, input { font: inherit; font-variant-numeric: tabular-nums; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  /* ---- top bar: title, search and settings on one line ---- */
+  .bar {
+    display: flex; align-items: center; gap: 10px; flex: none;
+    padding: 10px 14px; flex-wrap: wrap;
+  }
+  h1 { font-size: 14.5px; font-weight: 620; margin: 0; letter-spacing: -0.01em; white-space: nowrap; }
+  .meta { color: var(--text-muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .btn {
+    background: var(--surface-1); border: 1px solid var(--hairline); border-radius: 6px;
+    padding: 5px 8px; cursor: pointer; color: var(--text-secondary); font-size: 12px; flex: none;
+  }
+  .btn:hover { border-color: var(--hairline-strong); color: var(--text-primary); }
+
+  /* ---- search ---- */
+  .find { flex: 1 1 240px; position: relative; min-width: 0; }
+  #q {
+    width: 100%; background: var(--surface-1); border: 1px solid var(--hairline);
+    border-radius: 7px; padding: 7px 11px; font-size: 14px;
+  }
+  #q::placeholder { color: var(--text-muted); }
+  #q:focus { border-color: var(--accent); outline: none; }
+  .suggest {
+    position: absolute; z-index: 40; left: 0; right: 0; top: calc(100% + 5px);
+    background: var(--surface-1); border: 1px solid var(--hairline-strong); border-radius: 8px;
+    box-shadow: 0 6px 24px var(--shadow); max-height: min(46vh, 380px); overflow-y: auto;
+    overscroll-behavior: contain; display: none;
+  }
+  .suggest.open { display: block; }
+  .sug { display: flex; align-items: center; gap: 9px; padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--hairline); }
+  .sug:last-child { border-bottom: 0; }
+  .sug[aria-selected="true"], .sug:hover { background: var(--surface-2); }
+  .sug .main { flex: 1 1 auto; min-width: 0; }
+  .sug .disp, .sug .raw { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sug .raw { color: var(--text-muted); font-size: 11.5px; }
+  .sug .ct { color: var(--text-muted); font-size: 11.5px; flex: none; }
+  mark { background: color-mix(in srgb, var(--accent) 24%, transparent); color: inherit; border-radius: 2px; }
+  .cat { font-size: 10.5px; padding: 1px 5px; border-radius: 3px; border: 1px solid var(--hairline-strong); color: var(--text-secondary); flex: none; }
+
+  /* ---- one card: controls, readout and chart read as a single instrument ---- */
+  .app {
+    flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+    margin: 0 14px 14px; border: 1px solid var(--hairline); border-radius: 10px;
+    background: var(--surface-1); overflow: hidden;
+  }
+
+  /* ---- controls: wrap onto more lines rather than scroll options out of sight ---- */
+  .ctl {
+    flex: none; display: flex; gap: 7px; align-items: center; flex-wrap: wrap;
+    padding: 9px 11px; border-bottom: 1px solid var(--hairline);
+  }
+  .seg { display: inline-flex; border: 1px solid var(--hairline); border-radius: 6px; overflow: hidden; flex: none; background: var(--surface-1); }
+  .seg button {
+    border: 0; background: none; padding: 5px 10px; cursor: pointer; color: var(--text-secondary);
+    font-size: 12.5px; border-right: 1px solid var(--hairline); white-space: nowrap;
+  }
+  .seg button:last-child { border-right: 0; }
+  .seg button[aria-pressed="true"] { background: var(--surface-2); color: var(--text-primary); font-weight: 560; }
+
+  /* Smoothing is continuous, so it gets a slider: the three presets read as inert
+     because the trend is preserved by design and only spikes move, whereas dragging
+     shows the effect as it happens. */
+  .slide {
+    display: inline-flex; align-items: center; gap: 8px; flex: none;
+    border: 1px solid var(--hairline); border-radius: 6px; padding: 3px 9px 3px 10px;
+    font-size: 12.5px; color: var(--text-muted); background: var(--surface-1);
+  }
+  .slide b { color: var(--text-primary); font-weight: 560; min-width: 3.6em; text-align: right; }
+  .slide input[type="range"] {
+    -webkit-appearance: none; appearance: none; width: 96px; height: 16px;
+    background: none; cursor: pointer; margin: 0;
+  }
+  .slide input[type="range"]::-webkit-slider-runnable-track {
+    height: 3px; border-radius: 2px; background: var(--hairline-strong);
+  }
+  .slide input[type="range"]::-moz-range-track { height: 3px; border-radius: 2px; background: var(--hairline-strong); }
+  .slide input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 13px; height: 13px; margin-top: -5px;
+    border-radius: 50%; background: var(--accent); border: 2px solid var(--surface-1);
+  }
+  .slide input[type="range"]::-moz-range-thumb {
+    width: 13px; height: 13px; border-radius: 50%; background: var(--accent);
+    border: 2px solid var(--surface-1);
+  }
+
+  /* ---- plot ---- */
+  .plot { flex: 1 1 auto; min-height: 0; position: relative; padding: 4px 6px 2px; }
+  #chart { display: block; width: 100%; height: 100%; touch-action: none; }
+  /* Recessive chrome: solid hairlines one shade off the surface. Dashes read as
+     "threshold" or "projection" and add noise to something that is just a grid. */
+  .grid line { stroke: var(--hairline); stroke-width: 1; shape-rendering: crispEdges; }
+  .grid line.base { stroke: var(--hairline-strong); }
+  .axis text { fill: var(--text-muted); font-size: 10.5px; }
+  /* Tick values sit on their gridline, haloed so the rule reads through cleanly. */
+  .axis text.tick { paint-order: stroke; stroke: var(--surface-1); stroke-width: 3px; stroke-linejoin: round; }
+  .serie { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .tipdot { stroke: var(--surface-1); stroke-width: 1.5; }
+  .endlabel { font-size: 11.5px; font-weight: 560; paint-order: stroke; stroke: var(--surface-1); stroke-width: 3px; stroke-linejoin: round; }
+  .crosshair { stroke: var(--hairline-strong); stroke-width: 1; shape-rendering: crispEdges; }
+  .dot { stroke: var(--surface-1); stroke-width: 2; }
+  .hint { fill: var(--text-muted); font-size: 13px; }
+
+  /* ---- readout: selection, legend and value display in one control ---- */
+  .readout {
+    flex: none; border-bottom: 1px solid var(--hairline);
+    display: flex; align-items: stretch; gap: 0; max-height: 33dvh;
+  }
+  .when {
+    flex: none; display: flex; flex-direction: column; justify-content: center; gap: 1px;
+    padding: 8px 12px; border-right: 1px solid var(--hairline); min-width: 96px;
+  }
+  .when b { font-size: 13px; font-weight: 620; }
+  .when span { font-size: 10.5px; color: var(--text-muted); }
+  .series {
+    flex: 1 1 auto; display: grid; gap: 1px 0; padding: 6px 8px; overflow-y: auto;
+    overscroll-behavior: contain; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  }
+  .s {
+    display: flex; align-items: center; gap: 8px; padding: 3px 6px; border-radius: 5px;
+    cursor: pointer; min-width: 0;
+  }
+  .s:hover { background: var(--surface-2); }
+  .s.off { opacity: .42; }
+  .s .k { width: 14px; height: 2.5px; border-radius: 2px; flex: none; }
+  .s .n { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; color: var(--text-secondary); }
+  .s .v { font-size: 12.5px; font-weight: 620; flex: none; }
+  .s .x { border: 0; background: none; color: var(--text-muted); cursor: pointer; padding: 0 2px; line-height: 1; font-size: 15px; flex: none; }
+  .s .x:hover { color: var(--text-primary); }
+  .empty { color: var(--text-muted); font-size: 12.5px; padding: 10px 6px; }
+
+  /* ---- boot ---- */
+  .boot { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; text-align: center; color: var(--text-muted); }
+  .bar-p { width: min(280px, 70vw); height: 2px; background: var(--surface-2); border-radius: 1px; overflow: hidden; }
+  .bar-p > i { display: block; height: 100%; background: var(--accent); width: 0; transition: width .12s; }
+  .err { color: light-dark(#e34948, #e66767); }
+  .note { font-size: 11.5px; line-height: 1.6; max-width: 46ch; }
+
+  /* The control row scrolls sideways on narrow screens; fade its right edge so
+     it is visibly scrollable rather than looking clipped. */
+  @media (max-width: 620px) {
+    .bar { padding: 8px 10px; gap: 7px; row-gap: 8px; }
+    h1 { font-size: 13.5px; flex: 1 1 auto; }
+    .meta { display: none; }
+    .btn, select.btn { padding: 5px 7px; font-size: 11.5px; }
+    /* Search drops to its own full-width line; 16px keeps iOS from zooming in. */
+    .find { flex: 1 0 100%; order: 3; }
+    #q { padding: 9px 11px; font-size: 16px; }
+    .suggest { max-height: 44dvh; }
+    .sug { padding: 9px 11px; }
+    .app { margin: 0; border-radius: 0; border-left: 0; border-right: 0; border-bottom: 0; }
+    .ctl { padding: 8px 9px; gap: 6px; row-gap: 7px; }
+    .seg button { padding: 6px 9px; font-size: 12px; }
+    .when { min-width: 72px; padding: 6px 9px; }
+    .when b { font-size: 12.5px; }
+    .series { grid-template-columns: 1fr 1fr; padding: 5px 6px; align-content: start; }
+    .s { padding: 5px; gap: 6px; }
+    .s .n, .s .v { font-size: 12px; }
+    .plot { padding: 4px 3px 2px; }
+
+    /* A time series wants to be wider than tall. Left to fill a portrait phone the
+       plot lands near a 0.8 aspect, which reads as steep and cramped, so cap it and
+       let the readout take the slack -- inside one card the spare room is just part
+       of the surface rather than an empty box. */
+    .plot { flex: 0 0 auto; height: min(46dvh, 72vw); }
+    .readout { flex: 1 1 auto; max-height: none; }
+  }
+  @media (max-width: 380px) {
+    .series { grid-template-columns: 1fr; }
+  }
+  /* Landscape phones: vertical space is the scarce axis, so shed chrome height. */
+  @media (max-height: 520px) {
+    .bar { padding: 6px 10px; }
+    #q { padding: 6px 10px; }
+    .ctl { padding: 6px 9px; }
+    .readout { max-height: 40dvh; }
+    .series { padding: 4px 6px; }
+    .plot { flex: 1 1 auto; height: auto; }
+  }
+</style>
+</head>
+<body>
+  <div class="bar">
+    <h1 id="t-title">Danbooru Tag Index</h1>
+    <div class="find" id="find" hidden>
+      <input id="q" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="suggest">
+      <div class="suggest" id="suggest" role="listbox"></div>
+    </div>
+    <span class="meta" id="meta"></span>
+    <select class="btn" id="lang" aria-label="Language">
+      <option value="zh_hans">简体</option>
+      <option value="zh_hant">繁體</option>
+      <option value="ja">日本語</option>
+      <option value="en">English</option>
+      <option value="ko">한국어</option>
+    </select>
+    <button class="btn" id="theme" aria-label="Theme">◐</button>
+  </div>
+
+  <div class="boot" id="boot">
+    <span id="t-loading">Loading…</span>
+    <div class="bar-p"><i id="bootbar"></i></div>
+  </div>
+
+  <div class="app" id="app" hidden>
+  <div class="ctl" id="ctl">
+    <div class="seg" id="metric">
+      <button data-v="rel" data-t="rel" aria-pressed="true"></button>
+      <button data-v="share" data-t="share" aria-pressed="false"></button>
+      <button data-v="posts" data-t="posts" aria-pressed="false"></button>
+    </div>
+    <label class="slide">
+      <span id="t-smooth"></span>
+      <input id="smooth" type="range" min="0" max="36" step="1" value="6">
+      <b id="smooth-v"></b>
+    </label>
+    <div class="seg" id="range">
+      <button data-v="0" data-t="all" aria-pressed="true"></button>
+      <button data-v="120" data-t="y10" aria-pressed="false"></button>
+      <button data-v="60" data-t="y5" aria-pressed="false"></button>
+      <button data-v="24" data-t="y2" aria-pressed="false"></button>
+    </div>
+    <div class="seg" id="scale">
+      <button data-v="lin" data-t="linear" aria-pressed="true"></button>
+      <button data-v="log" data-t="log" aria-pressed="false"></button>
+    </div>
+  </div>
+
+  <div class="readout" id="readout">
+    <div class="when"><b id="when-m">—</b><span id="when-u"></span></div>
+    <div class="series" id="series"></div>
+  </div>
+
+  <div class="plot" id="plot"><svg id="chart" role="img"></svg></div>
+  </div>
+
+<script>
+"use strict";
+
+const BUNDLE_URL = "./index_bundle.bin";   // CI deploys the bundle beside this page
+const MAX_SERIES = 8;
+const SEGMENTS = ["metric", "scale", "range"];   // element id doubles as the state key
+const LANGS = ["zh_hans", "zh_hant", "ja", "en", "ko"];   // slot order is part of the format
+const ALIAS_CODE = 255;
+const CAT_NAME = { 0: "general", 1: "artist", 3: "copyright", 4: "character", 5: "meta" };
+const DEC = new TextDecoder();
+const CACHE_LIMIT = 512;
+
+// Binary layout, mirroring HEADER_FORMAT / RECORD_FORMAT in export_index_bundle.py.
+const H = { version: 4, nTags: 6, nMonths: 10, nCats: 12, totals: 16, cats: 20, table: 24, names: 28, i18n: 32, search: 36, searchLen: 40, values: 44, epoch: 48, firstComplete: 50, lastComplete: 52 };
+const R = { size: 24, nameOff: 0, nameLen: 4, category: 5, deprecated: 6, firstM: 7, span: 9, dataOff: 11, postCount: 15, i18nOff: 19 };
+
+// ---------------------------------------------------------------- i18n
+
+const UI = {
+  zh_hans: { title:"Danbooru 标签指数", loading:"正在加载指数数据…", search:"搜索标签：初音未来 / hatsune_miku / けものみみ",
+    rel:"相对指数", share:"份额", posts:"投稿量", linear:"线性", log:"对数",
+    smooth:"平滑", raw:"原始", mo:"{n} 月", all:"全部", y10:"10年", y5:"5年", y2:"2年",
+    empty:"搜索标签以添加曲线", limit:"最多 {n} 条", tags:"个标签", posts_total:"篇投稿",
+    relUnit:"相对同类均值", shareUnit:"万分比", postsUnit:"篇/月", failed:"加载失败：",
+    serve:"请从仓库根目录启动本地服务器后访问 /web/：python -m http.server 8000" },
+  zh_hant: { title:"Danbooru 標籤指數", loading:"正在載入指數資料…", search:"搜尋標籤：初音未來 / hatsune_miku / けものみみ",
+    rel:"相對指數", share:"份額", posts:"投稿量", linear:"線性", log:"對數",
+    smooth:"平滑", raw:"原始", mo:"{n} 月", all:"全部", y10:"10年", y5:"5年", y2:"2年",
+    empty:"搜尋標籤以加入曲線", limit:"最多 {n} 條", tags:"個標籤", posts_total:"篇投稿",
+    relUnit:"相對同類均值", shareUnit:"萬分比", postsUnit:"篇/月", failed:"載入失敗：",
+    serve:"請從倉庫根目錄啟動本機伺服器後存取 /web/：python -m http.server 8000" },
+  ja: { title:"Danbooru タグ指数", loading:"指数データを読み込み中…", search:"タグを検索：初音ミク / hatsune_miku / けものみみ",
+    rel:"相対指数", share:"シェア", posts:"投稿数", linear:"線形", log:"対数",
+    smooth:"平滑化", raw:"生値", mo:"{n}ヶ月", all:"全期間", y10:"10年", y5:"5年", y2:"2年",
+    empty:"タグを検索して追加", limit:"最大 {n} 件", tags:"件のタグ", posts_total:"件の投稿",
+    relUnit:"同カテゴリ平均比", shareUnit:"万分率", postsUnit:"件/月", failed:"読み込み失敗：",
+    serve:"リポジトリ直下でローカルサーバーを起動し /web/ を開いてください：python -m http.server 8000" },
+  en: { title:"Danbooru Tag Index", loading:"Loading index data…", search:"Search tags: hatsune_miku / 初音ミク / けものみみ",
+    rel:"Relative", share:"Share", posts:"Posts", linear:"Linear", log:"Log",
+    smooth:"Smoothing", raw:"Raw", mo:"{n} mo", all:"All", y10:"10y", y5:"5y", y2:"2y",
+    empty:"Search for tags to plot", limit:"Max {n}", tags:"tags", posts_total:"posts",
+    relUnit:"vs category average", shareUnit:"per 10k", postsUnit:"posts/mo", failed:"Failed to load: ",
+    serve:"Serve the repo root and open /web/: python -m http.server 8000" },
+  ko: { title:"Danbooru 태그 지수", loading:"지수 데이터를 불러오는 중…", search:"태그 검색: 하츠네미쿠 / hatsune_miku / けものみみ",
+    rel:"상대 지수", share:"점유율", posts:"게시물", linear:"선형", log:"로그",
+    smooth:"평활화", raw:"원본", mo:"{n}개월", all:"전체", y10:"10년", y5:"5년", y2:"2년",
+    empty:"태그를 검색해 추가하세요", limit:"최대 {n}개", tags:"개 태그", posts_total:"개 게시물",
+    relUnit:"동일 분류 평균 대비", shareUnit:"만분율", postsUnit:"개/월", failed:"불러오기 실패: ",
+    serve:"저장소 루트에서 로컬 서버를 실행한 뒤 /web/ 을 여세요: python -m http.server 8000" },
+};
+const LOCALE = { zh_hans: "zh-CN", zh_hant: "zh-TW", ja: "ja-JP", en: "en-US", ko: "ko-KR" };
+const t = (key) => (UI[state.lang] || UI.en)[key] || key;
+
+// ---------------------------------------------------------------- bundle
+
+/** Reader for the DBIX v3 bundle written by scripts/export_index_bundle.py. */
+class Bundle {
+  constructor(buf) {
+    this.u8 = new Uint8Array(buf);
+    this.dv = new DataView(buf);
+    if (this.dv.getUint32(0, false) !== 0x44424958) throw new Error("bad magic");   // "DBIX"
+    this.version = this.dv.getUint16(H.version, true);
+    if (this.version !== 4) throw new Error("unsupported bundle version " + this.version);
+    this.nTags = this.dv.getUint32(H.nTags, true);
+    this.nMonths = this.dv.getUint16(H.nMonths, true);
+    this.nCats = this.u8[H.nCats];
+    for (const key of ["totals", "cats", "table", "names", "i18n", "search", "searchLen", "values"]) {
+      this[key + "Off"] = this.dv.getUint32(H[key], true);
+    }
+    this.searchLen = this.searchLenOff;
+
+    const epochMonth = this.dv.getUint16(H.epoch, true);
+    this.epochYear = Math.floor(epochMonth / 12);
+    this.epochMon = (epochMonth % 12) + 1;
+    // Both ends can be a partial month -- the site's opening week and the sync's
+    // cut-off. The exporter decides; charting them would show dips that never happened.
+    this.firstComplete = this.dv.getUint16(H.firstComplete, true);
+    this.lastComplete = this.dv.getUint16(H.lastComplete, true);
+
+    this.totals = new Array(this.nMonths);
+    for (let i = 0; i < this.nMonths; i++) this.totals[i] = this.dv.getUint32(this.totalsOff + i * 4, true);
+
+    // Per-category monthly posts and effective competitor count, for the
+    // fragmentation-adjusted metric.
+    this.cats = new Map();
+    const stride = 4 + this.nMonths * 8;
+    for (let c = 0; c < this.nCats; c++) {
+      const o = this.catsOff + c * stride;
+      const posts = new Float64Array(this.nMonths);
+      const nEff = new Float64Array(this.nMonths);
+      for (let i = 0; i < this.nMonths; i++) {
+        posts[i] = this.dv.getUint32(o + 4 + i * 4, true);
+        nEff[i] = this.dv.getFloat32(o + 4 + this.nMonths * 4 + i * 4, true);
+      }
+      this.cats.set(this.dv.getUint32(o, true), { posts, nEff });
+    }
+
+    this._names = new Map();
+    this._i18n = new Map();
+    this._series = new Map();
+    this._hay = null;
+  }
+
+  /** Lazy: the haystack is ~4 MB of UTF-16 once decoded and is unused until a search. */
+  get hay() {
+    if (this._hay === null) {
+      this._hay = DEC.decode(this.u8.subarray(this.searchOff, this.searchOff + this.searchLen));
+      this.rowStart = new Uint32Array(this.nTags);
+      for (let i = 0, p = 0; i < this.nTags; i++) { this.rowStart[i] = p; p = this._hay.indexOf("\n", p) + 1; }
+    }
+    return this._hay;
+  }
+
+  _rec(i) { return this.tableOff + i * R.size; }
+  categoryOf(i) { return this.u8[this._rec(i) + R.category]; }
+  postCountOf(i) { return this.dv.getUint32(this._rec(i) + R.postCount, true); }
+  firstMonthOf(i) { return this.dv.getUint16(this._rec(i) + R.firstM, true); }
+
+  name(i) {
+    let value = this._names.get(i);
+    if (value === undefined) {
+      const o = this._rec(i);
+      const at = this.namesOff + this.dv.getUint32(o + R.nameOff, true);
+      value = DEC.decode(this.u8.subarray(at, at + this.u8[o + R.nameLen]));
+      bound(this._names).set(i, value);
+    }
+    return value;
+  }
+
+  _varint(p) {
+    let value = 0, shift = 0, byte;
+    do { byte = this.u8[p++]; value |= (byte & 0x7f) << shift; shift += 7; } while (byte >= 0x80);
+    this._p = p;
+    return value;
+  }
+
+  /** [{lang, text}] -- language-tagged display names first, then search aliases. */
+  i18n(i) {
+    let out = this._i18n.get(i);
+    if (out === undefined) {
+      out = [];
+      const count = this._varint(this.i18nOff + this.dv.getUint32(this._rec(i) + R.i18nOff, true));
+      let p = this._p;
+      for (let k = 0; k < count; k++) {
+        const code = this.u8[p++];
+        const len = this._varint(p);
+        p = this._p;
+        out.push({ lang: code === ALIAS_CODE ? null : LANGS[code], text: DEC.decode(this.u8.subarray(p, p + len)) });
+        p += len;
+      }
+      bound(this._i18n).set(i, out);
+    }
+    return out;
+  }
+
+  display(i, lang) {
+    for (const entry of this.i18n(i)) if (entry.lang === lang) return entry.text;
+    return this.name(i);
+  }
+
+  /** Monthly post counts over the tag's active run only; see firstMonthOf. */
+  series(i) {
+    let out = this._series.get(i);
+    if (out === undefined) {
+      const o = this._rec(i);
+      const span = this.dv.getUint16(o + R.span, true);
+      out = new Float64Array(span);
+      let p = this.valuesOff + this.dv.getUint32(o + R.dataOff, true);
+      for (let k = 0; k < span; k++) { out[k] = this._varint(p); p = this._p; }
+      bound(this._series).set(i, out);
+    }
+    return out;
+  }
+
+  /** Binary search over the name-sorted table; the bundle is written in this order. */
+  findByName(target) {
+    const want = new TextEncoder().encode(target);
+    let lo = 0, hi = this.nTags - 1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      const o = this._rec(mid);
+      const at = this.namesOff + this.dv.getUint32(o + R.nameOff, true);
+      const len = this.u8[o + R.nameLen];
+      let cmp = 0;
+      for (let k = 0, n = Math.min(len, want.length); k < n; k++) {
+        if (this.u8[at + k] !== want[k]) { cmp = this.u8[at + k] - want[k]; break; }
+      }
+      if (cmp === 0) cmp = len - want.length;
+      if (cmp === 0) return mid;
+      if (cmp < 0) lo = mid + 1; else hi = mid - 1;
+    }
+    return -1;
+  }
+
+  rowOf(pos) {
+    let lo = 0, hi = this.nTags - 1, best = 0;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (this.rowStart[mid] <= pos) { best = mid; lo = mid + 1; } else hi = mid - 1;
+    }
+    return best;
+  }
+
+  /**
+   * Cross-language search. One native indexOf sweep collects candidates, then
+   * each is scored from the match offset the sweep already found -- no row
+   * splitting, so cost scales with hits rather than with the 74k tag count.
+   */
+  search(query, limit = 30) {
+    const q = query.trim().toLowerCase().replace(/\s+/g, "_");
+    if (!q) return [];
+    const hay = this.hay;
+    const best = new Map();
+    for (let at = hay.indexOf(q); at >= 0; at = hay.indexOf(q, at + 1)) {
+      const i = this.rowOf(at);
+      const rowEnd = i + 1 < this.nTags ? this.rowStart[i + 1] - 1 : hay.length;
+      let start = hay.lastIndexOf("\x1f", at) + 1;
+      if (start < this.rowStart[i]) start = this.rowStart[i];
+      let end = hay.indexOf("\x1f", at);
+      if (end < 0 || end > rowEnd) end = rowEnd;
+
+      const termLen = end - start;
+      const ratio = q.length / termLen;
+      const score = termLen === q.length ? 1000 : start === at ? 500 + ratio * 200 : 100 + ratio * 200;
+      const prev = best.get(i);
+      if (prev === undefined || score > prev.score) best.set(i, { score, start, end });
+      if (best.size >= 2000) break;
+    }
+    const scored = [];
+    for (const [i, hit] of best) {
+      // Popularity breaks ties but never outranks a better textual match.
+      scored.push({ i, score: hit.score + Math.log10(this.postCountOf(i) + 10), term: hay.slice(hit.start, hit.end) });
+    }
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, limit);
+  }
+}
+
+/** Keep a memo Map from growing without bound over a long session. */
+function bound(map) {
+  if (map.size >= CACHE_LIMIT) map.delete(map.keys().next().value);
+  return map;
+}
+
+// ---------------------------------------------------------------- state
+
+const state = {
+  bundle: null,
+  lang: "en",
+  theme: null,          // null = follow the OS
+  picked: [],           // {idx, slot, hidden} -- slot binds the colour to the tag
+  metric: "rel",
+  scale: "lin",
+  smooth: 6,   // matches the slider's default in the markup
+  range: 0,
+  hoverMonth: null,
+};
+
+const $ = (id) => document.getElementById(id);
+let fmtInt = new Intl.NumberFormat("en");
+const valueCache = new Map();
+let plot = null;
+let plotRect = null;
+
+function el(tag, cls, text) {
+  const node = document.createElement(tag);
+  if (cls) node.className = cls;
+  if (text !== undefined) node.textContent = text;   // never innerHTML: names are data
+  return node;
+}
+
+function monthLabel(i) {
+  const b = state.bundle;
+  const total = b.epochYear * 12 + (b.epochMon - 1) + i;
+  return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, "0")}`;
+}
+function monthYear(i) {
+  const b = state.bundle;
+  return Math.floor((b.epochYear * 12 + (b.epochMon - 1) + i) / 12);
+}
+const nameOf = (idx) => state.bundle.display(idx, state.lang);
+
+/**
+ * Metric values across the whole month axis.
+ *
+ * `rel` divides the tag's within-category share by the average competitor's
+ * share (i.e. multiplies by n_eff), so 1.0 means "the size of a typical tag in
+ * this category that month". Plain share sags as the tag universe expands even
+ * when a tag's following is unchanged; this removes that.
+ */
+function valuesFor(idx) {
+  const key = `${idx}|${state.metric}|${state.smooth}`;
+  const hit = valueCache.get(key);
+  if (hit) return hit;
+
+  const b = state.bundle;
+  const run = b.series(idx);
+  const first = b.firstMonthOf(idx);
+  const n = b.nMonths;
+  const raw = new Float64Array(n);
+  raw.set(run, first);
+
+  const out = new Float64Array(n);
+  if (state.metric === "posts") {
+    out.set(raw);
+  } else if (state.metric === "share") {
+    for (let i = 0; i < n; i++) out[i] = b.totals[i] > 0 ? (raw[i] * 10000) / b.totals[i] : 0;
+  } else {
+    const cat = b.cats.get(b.categoryOf(idx));
+    if (!cat) {
+      for (let i = 0; i < n; i++) out[i] = b.totals[i] > 0 ? (raw[i] * 10000) / b.totals[i] : 0;
+    } else {
+      for (let i = 0; i < n; i++) out[i] = cat.posts[i] > 0 ? (raw[i] / cat.posts[i]) * cat.nEff[i] : 0;
+    }
+  }
+
+  const result = smoothSeries(out, state.smooth, b.firstComplete, b.lastComplete);
+  bound(valueCache).set(key, result);
+  return result;
+}
+
+/**
+ * Gaussian-weighted local linear regression (LOESS, degree 1).
+ *
+ * A moving average is badly biased wherever the window runs off an edge. With
+ * only later months available, `1girl`'s first charted month smoothed to 1313
+ * against a true 318: the mean of rising data is dragged up by the trend, and
+ * shrinking the window does not help because the samples are all on one side.
+ * Fitting a local line and reading its value at the centre is unbiased under a
+ * linear trend no matter how lopsided the window is.
+ *
+ * The Gaussian weights are the other half: a boxcar treats a point six months
+ * away exactly like the adjacent one, which leaves visible steps. Weighting by
+ * distance cuts roughness ~40% and preserves peak heights better (k-on!'s peak
+ * survives at 58% rather than 53%).
+ */
+function smoothSeries(x, w, lo, hi) {
+  if (w <= 1) return x;
+  const sigma = w / 4;
+  const rad = Math.max(1, Math.ceil(2 * sigma));
+  const kern = new Float64Array(2 * rad + 1);
+  for (let d = -rad; d <= rad; d++) kern[d + rad] = Math.exp(-(d * d) / (2 * sigma * sigma));
+
+  const out = new Float64Array(x.length);
+  for (let i = lo; i <= hi; i++) {
+    let sw = 0, sx = 0, sxx = 0, sy = 0, sxy = 0;
+    // Clamped to the complete range: a partial month at either end is excluded
+    // from the chart, so letting it into the fit would drag the edge with it.
+    const dlo = Math.max(-rad, lo - i), dhi = Math.min(rad, hi - i);
+    for (let d = dlo; d <= dhi; d++) {
+      const k = kern[d + rad], y = x[i + d];
+      sw += k; sx += k * d; sxx += k * d * d; sy += k * y; sxy += k * d * y;
+    }
+    const den = sw * sxx - sx * sx;
+    const v = Math.abs(den) < 1e-9 ? sy / sw : (sxx * sy - sx * sxy) / den;
+    out[i] = v > 0 ? v : 0;   // a local line can undershoot; a count cannot be negative
+  }
+  return out;
+}
+
+function visibleRange() {
+  const { firstComplete: lo, lastComplete: hi } = state.bundle;
+  return [state.range > 0 ? Math.max(lo, hi - state.range + 1) : lo, hi];
+}
+const shownSeries = () => state.picked.filter((p) => !p.hidden);
+const unitLabel = () => t(state.metric === "rel" ? "relUnit" : state.metric === "share" ? "shareUnit" : "postsUnit");
+
+function fmtValue(v) {
+  if (v === 0) return "0";
+  if (state.metric === "posts") return v >= 1000 ? fmtInt.format(Math.round(v)) : v.toFixed(v >= 10 ? 0 : 1);
+  if (state.metric === "rel") return v >= 10 ? v.toFixed(0) : v >= 1 ? v.toFixed(2) : v.toFixed(3);
+  return v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2);
+}
+
+/** Axis ticks are abbreviated: they sit inside the plot and must stay small. */
+function fmtTick(v) {
+  if (state.metric !== "posts") return fmtValue(v);
+  if (v >= 1e6) return +(v / 1e6).toFixed(v >= 1e7 ? 0 : 1) + "M";
+  if (v >= 1e3) return +(v / 1e3).toFixed(v >= 1e4 ? 0 : 1) + "k";
+  return String(Math.round(v));
+}
+
+// ---------------------------------------------------------------- chart
+
+function niceTicks(lo, hi, target) {
+  if (!(hi > lo)) return [lo];
+  const raw = (hi - lo) / target;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const norm = raw / mag;
+  const step = (norm >= 7.5 ? 10 : norm >= 3.5 ? 5 : norm >= 1.5 ? 2 : 1) * mag;
+  const ticks = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi + step * 1e-9; v += step) ticks.push(v);
+  return ticks;
+}
+
+function logTicks(lo, hi) {
+  const ticks = [];
+  for (let e = Math.floor(Math.log10(lo)); e <= Math.ceil(Math.log10(hi)); e++) {
+    for (const m of [1, 2, 5]) {
+      const v = m * Math.pow(10, e);
+      if (v >= lo * 0.999 && v <= hi * 1.001) ticks.push(v);
+    }
+  }
+  return ticks.length >= 2 ? ticks : [lo, hi];
+}
+
+const SVGNS = "http://www.w3.org/2000/svg";
+function svgEl(name, attrs, parent) {
+  const node = document.createElementNS(SVGNS, name);
+  for (const k in attrs) node.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(node);
+  return node;
+}
+
+function render() {
+  const svg = $("chart");
+  svg.replaceChildren();
+  plotRect = null;
+
+  const box = svg.getBoundingClientRect();
+  const width = Math.max(200, Math.round(box.width));
+  const height = Math.max(140, Math.round(box.height));
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+
+  const shown = shownSeries();
+  if (!shown.length) {
+    svgEl("text", { class: "hint", x: width / 2, y: height / 2, "text-anchor": "middle" }, svg).textContent = t("empty");
+    plot = null;
+    updateReadout(null);
+    return;
+  }
+
+  const [m0, m1] = visibleRange();
+  const nVis = m1 - m0 + 1;
+  const data = shown.map((p) => ({ ...p, name: nameOf(p.idx), values: valuesFor(p.idx) }));
+
+  // End labels only where there is room for them; the readout carries identity
+  // and values at every width, so narrow screens lose nothing.
+  const labels = width >= 560;
+  const compact = height < 260;
+  // Tick values sit *on* the gridlines rather than in a left gutter, which buys
+  // back ~45px of plot width -- most of a phone's usable margin.
+  const pad = { t: 14, r: labels ? 100 : 10, b: 20, l: 10 };
+  const plotW = Math.max(10, width - pad.l - pad.r);
+  const plotH = Math.max(10, height - pad.t - pad.b);
+
+  let hi = -Infinity;
+  for (const d of data) for (let i = m0; i <= m1; i++) if (d.values[i] > hi) hi = d.values[i];
+  if (!isFinite(hi) || hi <= 0) hi = 1;
+
+  const isLog = state.scale === "log";
+  let yLo, yHi, ticks;
+  if (isLog) {
+    let positive = Infinity;
+    for (const d of data) for (let i = m0; i <= m1; i++) if (d.values[i] > 0 && d.values[i] < positive) positive = d.values[i];
+    if (!isFinite(positive)) positive = 1;
+    yLo = Math.pow(10, Math.floor(Math.log10(positive)));
+    yHi = Math.pow(10, Math.ceil(Math.log10(Math.max(hi, yLo * 10))));
+    ticks = logTicks(yLo, yHi);
+  } else {
+    yLo = 0;
+    ticks = niceTicks(0, hi, compact ? 3 : 5);
+    yHi = Math.max(hi, ticks[ticks.length - 1]);
+  }
+
+  const x = (i) => pad.l + (nVis === 1 ? plotW / 2 : ((i - m0) / (nVis - 1)) * plotW);
+  const y = isLog
+    ? (v) => pad.t + plotH - (Math.log10(Math.max(v, yLo) / yLo) / Math.log10(yHi / yLo)) * plotH
+    : (v) => pad.t + plotH - ((v - yLo) / (yHi - yLo)) * plotH;
+
+  const grid = svgEl("g", { class: "grid" }, svg);
+  const axis = svgEl("g", { class: "axis" }, svg);
+  for (const tick of ticks) {
+    const yy = Math.round(y(tick)) + 0.5;
+    const base = Math.abs(tick - yLo) < 1e-9;
+    svgEl("line", { class: base ? "base" : "", x1: pad.l, x2: pad.l + plotW, y1: yy, y2: yy }, grid);
+    if (!base || isLog) {
+      svgEl("text", { class: "tick", x: pad.l + 1, y: yy - 4 }, axis).textContent = fmtTick(tick);
+    }
+  }
+
+  const years = [];
+  for (let i = m0; i <= m1; i++) { const yr = monthYear(i); if (!years.length || years[years.length - 1].yr !== yr) years.push({ yr, i }); }
+  const room = width < 480 ? 44 : 56;
+  const stride = Math.max(1, Math.ceil(years.length / Math.max(2, Math.floor(plotW / room))));
+  const terse = width < 480 && years.length > 6;
+  years.forEach((entry, k) => {
+    if (k % stride) return;
+    const label = svgEl("text", { x: x(entry.i), y: pad.t + plotH + 14, "text-anchor": "middle" }, axis);
+    label.textContent = terse ? "'" + String(entry.yr).slice(2) : entry.yr;
+  });
+
+  for (const d of data) {
+    let path = "", pen = false;
+    for (let i = m0; i <= m1; i++) {
+      const v = d.values[i];
+      if (isLog && v <= 0) { pen = false; continue; }   // a log axis has no place for zero
+      path += (pen ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1) + " ";
+      pen = true;
+    }
+    svgEl("path", { class: "serie", d: path, stroke: `var(--s${d.slot})` }, svg);
+    // A dot on the latest point anchors the eye at "now" and keeps a series
+    // that ends flat from vanishing into a gridline.
+    const last = d.values[m1];
+    if (!(isLog && last <= 0)) {
+      svgEl("circle", { class: "tipdot", cx: x(m1), cy: y(last), r: 2.5, fill: `var(--s${d.slot})` }, svg);
+    }
+  }
+
+  if (labels) {
+    const placed = [];
+    for (const d of [...data].sort((a, b) => b.values[m1] - a.values[m1])) {
+      const v = d.values[m1];
+      if (isLog && v <= 0) continue;
+      let yy = y(v);
+      while (placed.some((p) => Math.abs(p - yy) < 13)) yy += 13;
+      placed.push(yy);
+      const label = svgEl("text", { class: "endlabel", x: pad.l + plotW + 6, y: Math.min(yy + 4, pad.t + plotH + 4), fill: `var(--s${d.slot})` }, svg);
+      label.textContent = d.name.length > 13 ? d.name.slice(0, 12) + "…" : d.name;
+    }
+  }
+
+  plot = { data, x, y, m0, m1, pad, plotW, plotH, isLog, hover: svgEl("g", {}, svg) };
+  updateReadout(state.hoverMonth);
+}
+
+// ---------------------------------------------------------------- readout
+
+/** The readout is the selection list, the legend and the value display at once. */
+function renderSeriesList() {
+  const box = $("series");
+  box.replaceChildren();
+  if (!state.picked.length) {
+    box.appendChild(el("div", "empty", t("empty")));
+    return;
+  }
+  for (const p of state.picked) {
+    const row = el("div", "s" + (p.hidden ? " off" : ""));
+    row.setAttribute("role", "button");
+    row.setAttribute("aria-pressed", String(!p.hidden));
+    row.tabIndex = 0;
+    const key = el("span", "k");
+    key.style.background = `var(--s${p.slot})`;
+    const value = el("span", "v", "—");
+    value.dataset.slot = String(p.slot);
+    const close = el("button", "x", "×");
+    close.setAttribute("aria-label", "remove");
+    close.onclick = (e) => { e.stopPropagation(); removeTag(p.idx); };
+    const toggle = () => { commit(); p.hidden = !p.hidden; renderSeriesList(); render(); };
+    row.onclick = toggle;
+    row.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } };
+    row.append(key, el("span", "n", nameOf(p.idx)), value, close);
+    box.appendChild(row);
+  }
+  if (state.picked.length >= MAX_SERIES) box.appendChild(el("div", "empty", t("limit").replace("{n}", MAX_SERIES)));
+}
+
+/** Values at `month`, or at the last complete month when not hovering. */
+function updateReadout(month) {
+  const rows = $("series").querySelectorAll(".s .v");
+  if (!plot) { rows.forEach((r) => (r.textContent = "—")); $("when-m").textContent = "—"; return; }
+  const at = month === null ? plot.m1 : month;
+  $("when-m").textContent = monthLabel(at);
+  $("when-u").textContent = unitLabel();
+  const byIdx = new Map(plot.data.map((d) => [d.slot, d.values[at]]));
+  rows.forEach((node) => {
+    const v = byIdx.get(Number(node.dataset.slot));
+    node.textContent = v === undefined ? "—" : fmtValue(v);
+  });
+}
+
+function onPointer(event) {
+  if (!plot) return;
+  const svg = $("chart");
+  if (!plotRect) plotRect = svg.getBoundingClientRect();
+  const px = ((event.clientX - plotRect.left) / plotRect.width) * svg.viewBox.baseVal.width;
+  const ratio = (px - plot.pad.l) / plot.plotW;
+  const i = Math.max(plot.m0, Math.min(plot.m1, plot.m0 + Math.round(ratio * (plot.m1 - plot.m0))));
+  if (i === state.hoverMonth) return;    // ~3 px per month: most moves land on the same one
+  state.hoverMonth = i;
+
+  plot.hover.replaceChildren();
+  const xx = Math.round(plot.x(i)) + 0.5;
+  svgEl("line", { class: "crosshair", x1: xx, x2: xx, y1: plot.pad.t, y2: plot.pad.t + plot.plotH }, plot.hover);
+  for (const d of plot.data) {
+    const v = d.values[i];
+    if (plot.isLog && v <= 0) continue;
+    svgEl("circle", { class: "dot", cx: plot.x(i), cy: plot.y(v), r: 4, fill: `var(--s${d.slot})` }, plot.hover);
+  }
+  updateReadout(i);
+}
+
+function clearHover() {
+  if (plot) plot.hover.replaceChildren();
+  state.hoverMonth = null;
+  updateReadout(null);
+}
+
+// ---------------------------------------------------------------- picking
+
+function addTag(idx, defer) {
+  if (idx < 0 || state.picked.some((p) => p.idx === idx) || state.picked.length >= MAX_SERIES) return;
+  if (!defer) commit();   // the seeding loop passes defer, and the initial state is not undoable
+  const used = new Set(state.picked.map((p) => p.slot));
+  let slot = 0;
+  while (used.has(slot) && slot < MAX_SERIES) slot++;
+  state.picked.push({ idx, slot, hidden: false });
+  if (!defer) { renderSeriesList(); render(); syncHash(); }
+}
+
+function removeTag(idx) {
+  commit();
+  state.picked = state.picked.filter((p) => p.idx !== idx);
+  renderSeriesList();
+  render();
+  syncHash();
+}
+
+// ---------------------------------------------------------------- search UI
+
+let sugIdx = -1, sugHits = [];
+
+function marked(text, query) {
+  const frag = document.createDocumentFragment();
+  const at = text.toLowerCase().indexOf(query.toLowerCase());
+  if (at < 0 || !query) { frag.appendChild(document.createTextNode(text)); return frag; }
+  frag.appendChild(document.createTextNode(text.slice(0, at)));
+  frag.append(el("mark", null, text.slice(at, at + query.length)), document.createTextNode(text.slice(at + query.length)));
+  return frag;
+}
+
+function renderSuggest(query) {
+  const box = $("suggest");
+  sugHits = query ? state.bundle.search(query) : [];
+  sugIdx = -1;
+  box.replaceChildren();
+  if (!sugHits.length) { box.classList.remove("open"); $("q").setAttribute("aria-expanded", "false"); return; }
+
+  sugHits.forEach((hit, k) => {
+    const raw = state.bundle.name(hit.i);
+    const display = nameOf(hit.i);
+    const row = el("div", "sug");
+    row.setAttribute("role", "option");
+    const main = el("span", "main");
+    const top = el("span", "disp");
+    top.appendChild(marked(display, query));
+    main.appendChild(top);
+
+    // Show what actually matched when it is not the visible name.
+    const secondary = [];
+    if (display !== raw) secondary.push(raw);
+    if (hit.term && hit.term !== raw.toLowerCase() && hit.term !== display.toLowerCase()) secondary.push(hit.term);
+    if (secondary.length) {
+      const sub = el("span", "raw");
+      sub.appendChild(marked(secondary.join(" · "), query));
+      main.appendChild(sub);
+    }
+    row.append(main, el("span", "cat", CAT_NAME[state.bundle.categoryOf(hit.i)] || "tag"), el("span", "ct", fmtInt.format(state.bundle.postCountOf(hit.i))));
+    row.onmousedown = (e) => { e.preventDefault(); pick(k); };
+    box.appendChild(row);
+  });
+  box.classList.add("open");
+  $("q").setAttribute("aria-expanded", "true");
+}
+
+function pick(k) {
+  if (k < 0 || k >= sugHits.length) return;
+  addTag(sugHits[k].i);
+  $("q").value = "";
+  renderSuggest("");
+  $("q").blur();
+}
+
+function highlight(next) {
+  const items = $("suggest").querySelectorAll(".sug");
+  if (!items.length) return;
+  if (sugIdx >= 0) items[sugIdx].setAttribute("aria-selected", "false");
+  sugIdx = (next + items.length) % items.length;
+  items[sugIdx].setAttribute("aria-selected", "true");
+  items[sugIdx].scrollIntoView({ block: "nearest" });
+}
+
+// ---------------------------------------------------------------- url + language
+
+function syncHash() {
+  const names = state.picked.map((p) => state.bundle.name(p.idx));
+  history.replaceState(null, "", location.pathname + location.search + (names.length ? "#" + names.map(encodeURIComponent).join(",") : ""));
+}
+
+function readHash() {
+  const raw = decodeURIComponent(location.hash.replace(/^#/, "")).trim();
+  if (!raw) return [];
+  return raw.split(",").map((s) => state.bundle.findByName(s.trim())).filter((i) => i >= 0);
+}
+
+function detectLang() {
+  const saved = localStorage.getItem("dbix-lang");
+  if (saved && UI[saved]) return saved;
+  for (const tag of navigator.languages || [navigator.language || "en"]) {
+    const lower = tag.toLowerCase();
+    if (lower.startsWith("zh")) return /hant|tw|hk|mo/.test(lower) ? "zh_hant" : "zh_hans";
+    if (lower.startsWith("ja")) return "ja";
+    if (lower.startsWith("ko")) return "ko";
+    if (lower.startsWith("en")) return "en";
+  }
+  return "en";
+}
+
+function showSmooth() {
+  $("smooth-v").textContent = state.smooth <= 1 ? t("raw") : t("mo").replace("{n}", state.smooth);
+}
+
+function applyLang() {
+  fmtInt = new Intl.NumberFormat(LOCALE[state.lang] || "en");
+  document.documentElement.lang = (LOCALE[state.lang] || "en").toLowerCase();
+  document.title = t("title");
+  $("t-title").textContent = t("title");
+  $("t-loading").textContent = t("loading");
+  $("t-smooth").textContent = t("smooth");
+  $("q").placeholder = t("search");
+  showSmooth();
+  for (const button of document.querySelectorAll(".seg button")) button.textContent = t(button.dataset.t);
+  $("chart").setAttribute("aria-label", t("title"));
+  const b = state.bundle;
+  if (b) {
+    $("meta").textContent = `${fmtInt.format(b.nTags)} ${t("tags")} · ${monthLabel(0)}–${monthLabel(b.completeMonths - 1)} · ${fmtInt.format(b.totals.reduce((a, c) => a + c, 0))} ${t("posts_total")}`;
+    renderSeriesList();
+    render();
+    if ($("q").value) renderSuggest($("q").value);
+  }
+}
+
+function applyTheme() {
+  if (state.theme) document.documentElement.setAttribute("data-theme", state.theme);
+  else document.documentElement.removeAttribute("data-theme");
+}
+
+// ---------------------------------------------------------------- undo/redo
+
+const HISTORY_LIMIT = 100;
+const past = [], future = [];
+let lastKind = "", lastAt = 0;
+
+/**
+ * The undoable slice of state: what the user composed, not their preferences.
+ * Theme and UI language stay outside it -- undoing a chart edit should not also
+ * flip the page back to dark.
+ */
+function snapshot() {
+  return JSON.stringify([
+    state.picked.map((p) => [p.idx, p.slot, p.hidden ? 1 : 0]),
+    state.metric, state.scale, state.smooth, state.range,
+  ]);
+}
+
+function restore(snap) {
+  const [picked, metric, scale, smooth, range] = JSON.parse(snap);
+  state.picked = picked.map(([idx, slot, hidden]) => ({ idx, slot, hidden: !!hidden }));
+  Object.assign(state, { metric, scale, smooth, range });
+  for (const id of SEGMENTS) {
+    for (const b of $(id).querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.v === String(state[id])));
+  }
+  $("smooth").value = String(state.smooth);
+  showSmooth();
+  renderSeriesList();
+  render();
+  syncHash();
+}
+
+/**
+ * Record the pre-change state. `kind` collapses one continuous gesture into a
+ * single step: dragging the smoothing slider fires `input` per pixel, and 36
+ * undo steps for one drag is not what Ctrl+Z is for.
+ */
+function commit(kind) {
+  const now = Date.now();
+  if (kind && kind === lastKind && now - lastAt < 700) { lastAt = now; return; }
+  lastKind = kind || "";
+  lastAt = now;
+  past.push(snapshot());
+  if (past.length > HISTORY_LIMIT) past.shift();
+  future.length = 0;
+}
+
+/** Move one step between the two stacks; undo is (past → future), redo the reverse. */
+function step(from, to) {
+  if (!from.length) return;
+  to.push(snapshot());
+  restore(from.pop());
+  lastKind = "";
+}
+
+// ---------------------------------------------------------------- boot
+
+function segment(id, cast) {
+  $(id).addEventListener("click", (e) => {
+    const button = e.target.closest("button");
+    if (!button) return;
+    commit();
+    for (const b of $(id).querySelectorAll("button")) b.setAttribute("aria-pressed", String(b === button));
+    state[id] = cast(button.dataset.v);
+    render();
+  });
+}
+
+async function boot() {
+  state.lang = detectLang();
+  state.theme = localStorage.getItem("dbix-theme") || null;
+  $("lang").value = state.lang;
+  applyTheme();
+  applyLang();
+
+  try {
+    const res = await fetch(BUNDLE_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const total = Number(res.headers.get("content-length")) || 0;
+    let buf;
+    if (res.body && total) {
+      const reader = res.body.getReader();
+      const parts = [];
+      let got = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        parts.push(value);
+        got += value.length;
+        $("bootbar").style.width = Math.min(100, (got / total) * 100) + "%";
+      }
+      buf = await new Blob(parts).arrayBuffer();
+    } else {
+      buf = await res.arrayBuffer();
+    }
+    state.bundle = new Bundle(buf);
+  } catch (err) {
+    $("boot").replaceChildren(el("div", "err", t("failed") + err.message), el("div", "note", t("serve")));
+    return;
+  }
+
+  $("boot").hidden = true;
+  for (const id of ["find", "app"]) $(id).hidden = false;
+
+  const fromHash = readHash();
+  const seed = fromHash.length ? fromHash : ["hatsune_miku", "genshin_impact", "blue_archive", "kantai_collection"].map((n) => state.bundle.findByName(n));
+  seed.slice(0, MAX_SERIES).forEach((i) => addTag(i, true));   // one render after the loop, not four
+  syncHash();
+
+  const q = $("q");
+  let debounce = 0;
+  q.addEventListener("input", () => { clearTimeout(debounce); debounce = setTimeout(() => renderSuggest(q.value), 60); });
+  q.addEventListener("focus", () => { if (q.value) renderSuggest(q.value); });
+  q.addEventListener("blur", () => setTimeout(() => $("suggest").classList.remove("open"), 140));
+  q.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); highlight(sugIdx + 1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); highlight(sugIdx - 1); }
+    else if (e.key === "Enter") { e.preventDefault(); pick(sugIdx >= 0 ? sugIdx : 0); }
+    else if (e.key === "Escape") { $("suggest").classList.remove("open"); q.blur(); }
+  });
+
+  segment("metric", String);
+  segment("scale", String);
+  segment("range", Number);
+
+  const smooth = $("smooth");
+  smooth.value = String(state.smooth);
+  smooth.addEventListener("input", () => {
+    commit("smooth");
+    state.smooth = Number(smooth.value);
+    showSmooth();
+    render();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+    // A focused text field owns its own Ctrl+Z; the range input has no native undo.
+    if (e.target.matches && e.target.matches("input:not([type=range]), textarea")) return;
+    const key = e.key.toLowerCase();
+    if (key === "z" && !e.shiftKey) { e.preventDefault(); step(past, future); }
+    else if (key === "y" || (key === "z" && e.shiftKey)) { e.preventDefault(); step(future, past); }
+  });
+
+  $("lang").addEventListener("change", (e) => {
+    state.lang = e.target.value;
+    localStorage.setItem("dbix-lang", state.lang);
+    applyLang();
+  });
+
+  $("theme").onclick = () => {
+    const dark = state.theme ? state.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    state.theme = dark ? "light" : "dark";
+    localStorage.setItem("dbix-theme", state.theme);
+    applyTheme();
+    render();
+  };
+
+  const svg = $("chart");
+  svg.addEventListener("pointerdown", onPointer);
+  svg.addEventListener("pointermove", onPointer);
+  svg.addEventListener("pointerleave", clearHover);
+
+  // Observe the container, whose size render() does not change -- the svg fills
+  // it via CSS, so there is no measure/resize feedback loop.
+  let raf = 0, lastW = 0, lastH = 0;
+  new ResizeObserver((entries) => {
+    const { width, height } = entries[0].contentRect;
+    if (Math.round(width) === lastW && Math.round(height) === lastH) return;
+    lastW = Math.round(width);
+    lastH = Math.round(height);
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(render);
+  }).observe($("plot"));
+
+  renderSeriesList();
+  render();
+}
+
+boot();
+</script>
+</body>
+</html>

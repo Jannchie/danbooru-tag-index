@@ -1,0 +1,20 @@
+__pycache__/
+.venv/
+venv/
+
+# Build artifacts. Everything here is reproducible: data/index/* from the
+# metadata database (stage 1), *_name_map.json from *_names.json plus the
+# committed LLM output.
+data/index/
+data/*.duckdb
+data/translations/*_names.json
+data/translations/*_name_map.json
+data/translations/_zh_work/
+site/
+
+# NOT ignored, and must stay that way -- these cost real money to produce and
+# cannot be regenerated from any input in this repo:
+#   data/translations/han_language_overrides.json
+#   data/translations/{character,copyright}_official.json
+#   data/translations/zh_supplement.json
+#   data/translations/zh_manual.json

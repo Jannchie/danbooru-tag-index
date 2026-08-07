@@ -1,0 +1,30 @@
+[project]
+name = "danbooru-tag-index"
+version = "0.1.0"
+description = "A Google-Trends-style popularity index for Danbooru tags, and the static site that charts it."
+requires-python = ">=3.12"
+# requests/sqlalchemy are not here on purpose: this project never talks to the
+# Danbooru API. It consumes the metadata database the sibling project syncs.
+dependencies = [
+    "duckdb>=1.5.5",
+    # Pinned, not floated. 1.4.1 rewrites 6,663 names with Japanese and variant
+    # glyphs where 1.3.1 produced correct Chinese ones (士郎正宗 -> 士郞正宗,
+    # 冰雨 -> 氷雨, 澤渡真琴 -> 澤渡眞琴, and 貓 -> 猫 in traditional output).
+    # Every display name in the bundle passes through this library; upgrading it
+    # silently changes what the site shows. Re-verify against the old maps before
+    # moving it.
+    "opencc==1.3.1",
+    "pyarrow>=25.0.0",
+    "rich>=14.3.1",       # progress bar for the 45-minute stage-1 scan
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
+
+[tool.black]
+line-length = 1000
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,90 @@
+name: build
+
+# Stage 2 of the build. Stage 1 needs the 46 GB metadata database and therefore
+# runs on the machine that holds it (scripts/refresh.py), publishing a ~75 MB set
+# of artifacts to the `data-latest` release. Nothing here opens that database.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Stage 1 fires this after uploading fresh artifacts.
+  repository_dispatch:
+    types: [data-refreshed]
+  workflow_dispatch:
+  schedule:
+    # Rebuild weekly even without a data refresh, so a broken dependency surfaces
+    # on its own rather than during the next data update.
+    - cron: "17 4 * * 1"
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --all-extras
+      - run: uv run pytest tests/ -q
+
+  bundle:
+    needs: test
+    runs-on: ubuntu-latest
+    # A pull request has no business publishing, but it should still prove the
+    # bundle builds -- so the job runs and only the deploy step is gated.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --all-extras
+
+      - name: Fetch stage-1 artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p data/index
+          gh release download data-latest --dir data/index --clobber
+          # export_tag_translations.py writes these next to the committed
+          # translation data, so put them back where build_name_map expects them.
+          mv data/index/*_names.json data/translations/
+          ls -la data/index data/translations
+
+      - name: Build name maps
+        run: uv run python scripts/build_name_map.py
+
+      - name: Build bundle
+        run: uv run python scripts/export_index_bundle.py
+
+      - name: Assemble the site
+        run: |
+          mkdir -p site
+          cp web/index.html site/
+          cp data/index/index_bundle.bin data/index/index_bundle.json site/
+          ls -la site
+
+      - uses: actions/upload-pages-artifact@v3
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        with:
+          path: site
+
+  deploy:
+    needs: bundle
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
