@@ -11,6 +11,7 @@ data/translations/*_names.json
 data/translations/*_name_map.json
 data/translations/_zh_work/
 site/
+logs/
 
 # NOT ignored, and must stay that way -- these cost real money to produce and
 # cannot be regenerated from any input in this repo:

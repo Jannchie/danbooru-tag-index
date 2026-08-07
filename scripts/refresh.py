@@ -34,6 +34,8 @@ STAGES = (
     ("export_tag_translations.py", "bucket wiki aliases by language"),
 )
 
+REPO = "Jannchie/danbooru-tag-index"
+
 # (directory, filename) -- CI downloads exactly this set and needs nothing else
 # from the database side.
 PUBLISH = (
@@ -53,6 +55,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--database", type=str, default=str(DANBOORU_DB_PATH))
     parser.add_argument("--resume", action="store_true", help="Continue an interrupted index scan.")
     parser.add_argument("--skip-index", action="store_true", help="Reuse the existing parquets; only re-export.")
+    parser.add_argument("--publish", action="store_true", help="Upload the artifacts and trigger the build workflow (needs gh).")
+    parser.add_argument("--repo", type=str, default=REPO, help="GitHub repo to publish to.")
     return parser.parse_args()
 
 
@@ -60,6 +64,22 @@ def run(script: str, args: list[str]) -> None:
     command = [sys.executable, str(SCRIPTS_DIR / script), *args]
     print(f"\n$ {' '.join(command[1:])}", flush=True)
     subprocess.run(command, check=True)
+
+
+def publish(paths: list[Path], repo: str) -> None:
+    """Replace the release assets, then ask CI to rebuild.
+
+    Upload first, dispatch second: the workflow downloads `data-latest` the moment
+    it starts, so dispatching first would race it into rebuilding the old data and
+    reporting success.
+    """
+    for command in (
+        ["gh", "release", "upload", "data-latest", *[str(p) for p in paths], "--clobber", "--repo", repo],
+        ["gh", "api", f"repos/{repo}/dispatches", "-f", "event_type=data-refreshed"],
+    ):
+        print(f"\n$ {' '.join(command)}", flush=True)
+        subprocess.run(command, check=True)
+    print(f"\nrebuild dispatched -- watch it with: gh run watch --repo {repo}")
 
 
 def main() -> None:
@@ -86,8 +106,12 @@ def main() -> None:
     print(f"artifacts to publish ({total / 1e6:.1f} MB):")
     for path in paths:
         print(f"  {path}  ({path.stat().st_size / 1e6:.1f} MB)")
-    print("\nupload with:")
-    print("  gh release upload data-latest \\\n    " + " \\\n    ".join(str(path) for path in paths) + " --clobber")
+    if args.publish:
+        publish(paths, args.repo)
+    else:
+        print("\npublish with --publish, or by hand:")
+        print("  gh release upload data-latest \\\n    " + " \\\n    ".join(str(path) for path in paths) + " --clobber")
+        print(f"  gh api repos/{args.repo}/dispatches -f event_type=data-refreshed")
 
 
 if __name__ == "__main__":

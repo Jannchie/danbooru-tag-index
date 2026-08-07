@@ -45,11 +45,42 @@ bundle, and deploys the site to Pages. **Nothing in stage 2 opens the database**
 that is the whole point of the split, and `export_wiki_aliases.py` exists only to
 make it true.
 
-To trigger a rebuild after a data refresh:
+`refresh.py --publish` does the upload and the dispatch itself. Upload happens
+first: the workflow downloads `data-latest` the moment it starts, so dispatching
+first would race it into rebuilding the old data and reporting success.
+
+### Keeping it current
+
+The metadata database does not refresh itself either, so the whole chain is one
+scheduled script — `scripts/weekly.ps1`, registered with Task Scheduler as
+**danbooru-tag-index weekly refresh** (Sundays, 03:00):
 
 ```
-gh release upload data-latest <artifacts> --clobber
-gh api repos/:owner/:repo/dispatches -f event_type=data-refreshed
+danbooru_metadata: update_danbooru.py   sync new posts
+danbooru_metadata: update_wiki.py       sync wiki, tags, aliases, artists
+danbooru-tag-index: refresh.py --publish  rebuild, upload, dispatch
+                                        → CI builds the bundle and deploys Pages
+```
+
+It spans both repositories deliberately. The sync belongs to `danbooru_metadata`
+(it owns the database); the rebuild belongs here. Neither reaches into the
+other's scripts — the driver is the only thing that knows both exist.
+
+Credentials come from the environment, never from arguments, because anything on
+a command line lands in the task definition, the process list and shell history:
+
+```powershell
+[Environment]::SetEnvironmentVariable('DANBOORU_API_KEY', '<key>', 'User')
+[Environment]::SetEnvironmentVariable('DANBOORU_LOGIN',   '<user>', 'User')
+```
+
+Without them the sync still runs, anonymously and much slower. Logs land in
+`logs/weekly_<timestamp>.log`. To run it by hand, or to check it without waiting
+a week:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\weekly.ps1          # everything
+powershell -ExecutionPolicy Bypass -File scripts\weekly.ps1 -SkipSync # rebuild only
 ```
 
 ## The three metrics
