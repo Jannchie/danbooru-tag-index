@@ -155,6 +155,7 @@
   /* Tick values sit on their gridline, haloed so the rule reads through cleanly. */
   .axis text.tick { paint-order: stroke; stroke: var(--surface-1); stroke-width: 3px; stroke-linejoin: round; }
   .serie { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .band { stroke: none; fill-opacity: .13; }
   .tipdot { stroke: var(--surface-1); stroke-width: 1.5; }
   .endlabel { font-size: 11.5px; font-weight: 560; paint-order: stroke; stroke: var(--surface-1); stroke-width: 3px; stroke-linejoin: round; }
   .crosshair { stroke: var(--hairline-strong); stroke-width: 1; shape-rendering: crispEdges; }
@@ -654,25 +655,46 @@ function valuesFor(idx) {
   raw.set(run, first);
 
   const out = new Float64Array(n);
+  // A month's posts is a count, so its sampling noise is Poisson: sd = sqrt(x).
+  // `self` is the tag's own weight in whatever denominator normalises it -- a
+  // tag that *is* most of its denominator moves the denominator when it moves,
+  // which damps the ratio's noise by (1 - self). Ignoring that would overstate
+  // the band for `1girl` (72% of all posts) and for a franchise that dominates
+  // its category.
+  const variance = new Float64Array(n);
+  const self = new Float64Array(n);
   if (state.metric === "posts") {
     out.set(raw);
   } else if (state.metric === "share") {
-    for (let i = 0; i < n; i++) out[i] = b.totals[i] > 0 ? (raw[i] * 10000) / b.totals[i] : 0;
+    for (let i = 0; i < n; i++) {
+      out[i] = b.totals[i] > 0 ? (raw[i] * 10000) / b.totals[i] : 0;
+      self[i] = b.totals[i] > 0 ? raw[i] / b.totals[i] : 0;
+    }
   } else {
     const cat = b.cats.get(b.categoryOf(idx));
     if (!cat) {
-      for (let i = 0; i < n; i++) out[i] = b.totals[i] > 0 ? (raw[i] * 10000) / b.totals[i] : 0;
+      for (let i = 0; i < n; i++) {
+        out[i] = b.totals[i] > 0 ? (raw[i] * 10000) / b.totals[i] : 0;
+        self[i] = b.totals[i] > 0 ? raw[i] / b.totals[i] : 0;
+      }
     } else {
       for (let i = 0; i < n; i++) {
         if (!(cat.posts[i] > 0) || !(cat.nEff[i] > 0)) { out[i] = 0; continue; }
         const s = raw[i] / cat.posts[i];
         const rivals = 1 / cat.nEff[i] - s * s;   // the category's HHI, less this tag's own term
         out[i] = rivals > 0 ? s / rivals : 0;     // a lone tag has no competitors to be typical of
+        self[i] = s;
       }
     }
   }
 
-  const result = smoothSeries(out, state.smooth, b.firstComplete, b.lastComplete);
+  for (let i = 0; i < n; i++) {
+    if (!(raw[i] > 0)) continue;
+    const sd = (out[i] * (1 - self[i])) / Math.sqrt(raw[i]);
+    variance[i] = sd * sd;
+  }
+
+  const result = smoothSeries(out, state.smooth, b.firstComplete, b.lastComplete, variance);
   bound(valueCache).set(key, result);
   return result;
 }
@@ -691,15 +713,27 @@ function valuesFor(idx) {
  * away exactly like the adjacent one, which leaves visible steps. Weighting by
  * distance cuts roughness ~40% and preserves peak heights better (k-on!'s peak
  * survives at 58% rather than 53%).
+ *
+ * With `varIn` it also returns the standard error of the fitted value. The fit
+ * is a linear operator -- v = sum(c_d * y_d) -- so the variances carry through
+ * as sum(c_d^2 * var_d), using the same coefficients the fit itself used. That
+ * is why the band tightens as the window widens: averaging more months is what
+ * buys the precision, and the band should say so.
  */
-function smoothSeries(x, w, lo, hi) {
-  if (w <= 1) return x;
+function smoothSeries(x, w, lo, hi, varIn) {
+  if (w <= 1) {
+    if (!varIn) return { v: x, se: null };
+    const se = new Float64Array(x.length);
+    for (let i = lo; i <= hi; i++) se[i] = Math.sqrt(varIn[i]);
+    return { v: x, se };
+  }
   const sigma = w / 4;
   const rad = Math.max(1, Math.ceil(2 * sigma));
   const kern = new Float64Array(2 * rad + 1);
   for (let d = -rad; d <= rad; d++) kern[d + rad] = Math.exp(-(d * d) / (2 * sigma * sigma));
 
   const out = new Float64Array(x.length);
+  const se = varIn ? new Float64Array(x.length) : null;
   for (let i = lo; i <= hi; i++) {
     let sw = 0, sx = 0, sxx = 0, sy = 0, sxy = 0;
     // Clamped to the complete range: a partial month at either end is excluded
@@ -710,10 +744,20 @@ function smoothSeries(x, w, lo, hi) {
       sw += k; sx += k * d; sxx += k * d * d; sy += k * y; sxy += k * d * y;
     }
     const den = sw * sxx - sx * sx;
-    const v = Math.abs(den) < 1e-9 ? sy / sw : (sxx * sy - sx * sxy) / den;
+    const flat = Math.abs(den) < 1e-9;   // too few distinct offsets to fit a slope
+    const v = flat ? sy / sw : (sxx * sy - sx * sxy) / den;
     out[i] = v > 0 ? v : 0;   // a local line can undershoot; a count cannot be negative
+    if (se) {
+      let acc = 0;
+      for (let d = dlo; d <= dhi; d++) {
+        const k = kern[d + rad];
+        const c = flat ? k / sw : (k * (sxx - sx * d)) / den;
+        acc += c * c * varIn[i + d];
+      }
+      se[i] = Math.sqrt(acc);
+    }
   }
-  return out;
+  return { v: out, se };
 }
 
 function visibleRange() {
@@ -790,7 +834,10 @@ function render() {
 
   const [m0, m1] = visibleRange();
   const nVis = m1 - m0 + 1;
-  const data = shown.map((p) => ({ ...p, name: nameOf(p.idx), values: valuesFor(p.idx) }));
+  const data = shown.map((p) => {
+    const fit = valuesFor(p.idx);
+    return { ...p, name: nameOf(p.idx), values: fit.v, se: fit.se };
+  });
 
   // End labels only where there is room for them; the readout carries identity
   // and values at every width, so narrow screens lose nothing.
@@ -847,6 +894,33 @@ function render() {
     const label = svgEl("text", { x: x(entry.i), y: pad.t + plotH + 14, "text-anchor": "middle" }, axis);
     label.textContent = terse ? "'" + String(entry.yr).slice(2) : entry.yr;
   });
+
+  // 95% bands from counting noise alone, drawn beneath every line so that one
+  // series' uncertainty never hides another's value. Half of the copyright tags
+  // get under 10 posts a month, where the band is wider than the swings people
+  // read as trends -- the chart should say so rather than let a confident-
+  // looking 2px line imply precision the count cannot support.
+  for (const d of data) {
+    if (!d.se) continue;
+    const clamp = (v) => Math.max(pad.t, Math.min(pad.t + plotH, y(v))).toFixed(1);
+    let seg = [];
+    const flush = () => {
+      if (seg.length > 1) {
+        let path = "";
+        for (let k = 0; k < seg.length; k++) path += (k ? "L" : "M") + seg[k][0] + " " + seg[k][1] + " ";
+        for (let k = seg.length - 1; k >= 0; k--) path += "L" + seg[k][0] + " " + seg[k][2] + " ";
+        svgEl("path", { class: "band", d: path + "Z", fill: `var(--s${d.slot})` }, svg);
+      }
+      seg = [];
+    };
+    for (let i = m0; i <= m1; i++) {
+      const v = d.values[i];
+      if (isLog && v <= 0) { flush(); continue; }   // same break the line takes
+      const e = 1.96 * d.se[i];
+      seg.push([x(i).toFixed(1), clamp(v + e), clamp(v - e)]);
+    }
+    flush();
+  }
 
   for (const d of data) {
     let path = "", pen = false;
