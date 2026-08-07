@@ -26,3 +26,5 @@ logs/
 #   data/translations/{character,copyright}_official.json
 #   data/translations/zh_supplement.json
 #   data/translations/zh_manual.json
+#   data/translations/general_zh.json
+#   data/translations/general_manual.json

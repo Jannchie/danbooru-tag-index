@@ -207,7 +207,7 @@ of them — `初音` and `하츠네` both find `hatsune_miku`, `けものみみ`
 `animal_ears`. Search also folds katakana to hiragana and converts between Han
 scripts, so `东方` and `東方` are equivalent queries. A full query costs 1–13 ms.
 
-Three sources feed this, with deliberately different roles and trust levels.
+Four sources feed this, with deliberately different roles and trust levels.
 
 **1. The wiki alias pool → search only.** 58.2k tags are reachable in some other
 language this way. It is built for recall, not equivalence: it lists whatever
@@ -241,12 +241,26 @@ anchors; `translate_merge.py` validates and merges the answers. It is a separate
 file because its provenance is different: nothing in Danbooru backs it, so it must
 be separately auditable and separately revertible.
 
+**4. `general_zh.json` → the ordinary vocabulary.** general and meta tags used to
+ship under their English slug in every language, which left the most-used half of
+the vocabulary unreadable for four of the five audiences. These are ordinary words
+— `long_hair`, `blush`, `tsundere` — with no official rendering to get wrong, so a
+bulk translation of the slug is safe where one of a franchise name is not.
+`import_general_names.py` therefore **refuses any category but general and meta**:
+the same source renders `kemono_friends` as 兽之朋友 and `dark_souls_(series)` as
+黑暗灵魂, both plausible and neither what anyone calls them. Traditional Chinese is
+converted from the simplified name rather than guessed a second time.
+`general_manual.json` fixes the part a general-purpose translator cannot know —
+Danbooru's own vocabulary, where `commentary` is the artist's note, `bad_id` a dead
+upstream link and `absurdres` a resolution.
+
 | Category | Tags with a Chinese name | Posts under one | Tags ≥1000 posts |
 | --- | --- | --- | --- |
-| copyright | 33% | 85% | 82% |
-| character | 42% | 76% | 89% |
-| artist | 28% | 29% | — |
-| general | — | — | — |
+| general | 88% | 99% | 98% |
+| meta | 70% | 98% | 85% |
+| copyright | 32% | 85% | 80% |
+| character | 42% | 75% | 87% |
+| artist | 28% | 29% | 33% |
 
 ### What this pipeline gets wrong, and how it is caught
 
@@ -359,5 +373,7 @@ nothing in this repo can regenerate them:
 | `copyright_official.json` | 2.1 MB | LLM selection among wiki candidates |
 | `character_official.json` | 0.9 MB | LLM selection among wiki candidates |
 | `zh_supplement.json` | 51 KB | LLM translation |
+| `general_zh.json` | 0.7 MB | LLM translation of general/meta slugs |
 | `zh_manual.json` | — | hand-verified corrections |
+| `general_manual.json` | — | hand-verified corrections |
 | `zh_rejected.json` | — | names a review found wrong with no replacement |

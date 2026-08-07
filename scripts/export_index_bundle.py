@@ -95,9 +95,26 @@ ALIAS_CODE = 255
 
 NAME_MAP_FILES = ("character_name_map.json", "copyright_name_map.json", "artist_name_map.json")
 
+# Chinese for the general and meta vocabulary, translated from the slug rather
+# than selected from the alias pool. See load_general_names for why those two
+# categories can take a translation the proper-noun ones cannot.
+GENERAL_FILE = "general_zh.json"
+
+# Hand-fixed entries for the file above. Danbooru's own vocabulary is the part a
+# general-purpose translator gets wrong -- `commentary` is the artist's note, not
+# a broadcast; `bad_id` is a dead upstream link; `absurdres` is a resolution.
+# Separate file because import_general_names.py overwrites the bulk one.
+GENERAL_MANUAL_FILE = "general_manual.json"
+
 # Chinese names translated from knowledge rather than selected from Danbooru's
 # alias pool. Applied last and only into empty slots -- see load_zh_supplement.
 SUPPLEMENT_FILE = "zh_supplement.json"
+
+# Hand-verified corrections. translate_merge.py folds these into the supplement,
+# but only while merging an LLM batch -- so a correction made on its own would sit
+# unapplied until the next translation run. Read directly, and last, because a
+# name someone checked by hand outranks every automatic layer.
+MANUAL_FILE = "zh_manual.json"
 
 # Tags whose pool-derived Chinese name a review found wrong without finding a
 # replacement. Separate from the supplement because it is the opposite assertion:
@@ -208,11 +225,60 @@ def load_name_maps(translations_dir: Path, wanted: set[str]) -> dict[str, dict[s
     return merged
 
 
+def load_general_names(
+    translations_dir: Path,
+    wanted: set[str],
+    name_maps: dict[str, dict[str, str]],
+    converters: Converters | None,
+) -> int:
+    """Chinese display names for the general and meta vocabulary.
+
+    These tags shipped under their English slug in every language, which left the
+    most-used half of the vocabulary unreadable for four of the five audiences.
+    The alias pool cannot fill it: deriving display names from it was tried and
+    reverted, since it is built for recall and will claim `school_uniform` means
+    "制服スパッツ".
+
+    Translating the slug is a different proposition, and only for these two
+    categories. `long_hair`, `blush` and `tsundere` are ordinary words with no
+    official rendering to get wrong. A franchise or a character is a proper noun,
+    where the same source offers 兽之朋友 for `kemono_friends` and 黑暗灵魂 for
+    `dark_souls_(series)` -- plausible, and not what anyone calls them. Those
+    categories keep their reviewed maps; see scripts/import_general_names.py.
+
+    Fills only. Anything already carrying a Chinese name got it from a reviewed
+    map or a hand-checked correction, and both outrank a bulk translation.
+    """
+    path = translations_dir / GENERAL_FILE
+    if not path.exists():
+        print(f"  WARNING: {GENERAL_FILE} missing -- general tags ship under their English slug")
+        return 0
+    data = json.loads(path.read_text(encoding="utf-8"))
+    manual_path = translations_dir / GENERAL_MANUAL_FILE
+    manual = json.loads(manual_path.read_text(encoding="utf-8")) if manual_path.exists() else {}
+    data = {**data, **manual}   # hand-checked wins over bulk
+    added = 0
+    for tag, zh in data.items():
+        if tag not in wanted or not zh:
+            continue
+        slot = name_maps.setdefault(tag, {})
+        if slot.get("zh_hans"):
+            continue
+        slot["zh_hans"] = str(zh)
+        # Traditional is a conversion of the simplified name, not a second guess.
+        if converters is not None and not slot.get("zh_hant"):
+            slot["zh_hant"] = converters.to_traditional(str(zh))
+        added += 1
+    print(f"  {GENERAL_FILE}: {added:,} general/meta tags given a Chinese name ({len(manual)} hand-fixed)")
+    return added
+
+
 def load_zh_supplement(
     translations_dir: Path,
     wanted: set[str],
     name_maps: dict[str, dict[str, str]],
     converters: Converters | None,
+    filename: str = SUPPLEMENT_FILE,
 ) -> int:
     """Fill Chinese display names the wiki-derived maps have no source for.
 
@@ -233,7 +299,7 @@ def load_zh_supplement(
     name everyone actually uses -- sat in the same pool misfiled under Japanese.
     A layer that could only fill gaps could never correct that.
     """
-    path = translations_dir / SUPPLEMENT_FILE
+    path = translations_dir / filename
     if not path.exists():
         return 0
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -259,7 +325,7 @@ def load_zh_supplement(
             corrected += 1
         else:
             filled += 1
-    print(f"  {SUPPLEMENT_FILE}: {filled:,} Chinese names filled in, {corrected:,} corrected")
+    print(f"  {filename}: {filled:,} Chinese names filled in, {corrected:,} corrected")
     return filled + corrected
 
 
@@ -536,9 +602,14 @@ def main() -> None:
     if not args.no_i18n:
         name_maps = load_name_maps(Path(args.translations_dir), wanted)
         converters = build_converters()
+        # Before the supplement and the rejections: those are review decisions and
+        # must be able to override a bulk-translated name.
+        load_general_names(Path(args.translations_dir), wanted, name_maps, converters)
         load_zh_supplement(Path(args.translations_dir), wanted, name_maps, converters)
         # 拒绝在补充之后:审查若给出了替代名,那条断言更强,不该再被撤掉。
         load_zh_rejections(Path(args.translations_dir), wanted, name_maps, converters)
+        # 人工修正最后:它既能填也能改,而且比"这个名字是错的"更强 —— 它说得出对的是什么。
+        load_zh_supplement(Path(args.translations_dir), wanted, name_maps, converters, MANUAL_FILE)
         aliases = Path(args.wiki_aliases) if args.wiki_aliases else index_dir / "wiki_other_names.json"
         other_names = load_other_names(aliases, wanted)
 
