@@ -237,11 +237,31 @@ because a fill-only layer could never have fixed this one.
 never reviewed by a translation pass.** `translate_prep.py` selects only tags with
 no Chinese name, so those are not even candidates for review yet.
 
-**`opencc` is pinned, not floated.** Version 1.4.1 rewrites 6,663 names with
-Japanese and variant glyphs where 1.3.1 produces correct Chinese ones (士郎正宗 →
-士郞正宗, 冰雨 → 氷雨, 澤渡真琴 → 澤渡眞琴, 貓 → 猫 in traditional output). Nothing
-counts that — the bundle builds to the same tag total and quietly renders wrong
-glyphs. `test_opencc_produces_chinese_glyphs_not_japanese_variants` guards it.
+**A supplied Chinese name is not necessarily Chinese.** `fill_cjk` converts only
+when *deriving* a missing field; a value the wiki bucket or `*_official.json`
+supplies is trusted verbatim. 2,493 shipped names were therefore traditional or
+Japanese while labelled `zh_hans` — 未来日記, 封神演義, 愛知万博, 戦国BASARA.
+`normalize_chinese` now runs `t2s` over every supplied simplified name.
+
+It runs **only** `t2s`, never `jp2t`. Applying `jp2t` to text that is already
+Chinese turns shared characters back into Japanese: `mirinsoup`'s Japanese name
+酢酸汁 converts correctly to 醋酸汁, and a second `jp2t` pass flips it back
+(the mapping is bidirectional), while 默天蕓 → 默天芸 becomes 默天艺 because
+`jp2t` reads 芸 as the shinjitai of 藝. `t2s` is the identity on simplified text,
+so it cannot damage a value that is already right. The cost is that pure
+shinjitai with no Chinese counterpart (戦, 伝, 錬) survive; removing those needs a
+hand-checked character table, not a converter that bites back.
+
+**`opencc` is pinned, not floated** — though calling 1.4.1 a bug would be too
+strong. Only `jp2t` changed, and it changed both ways: it added faithful kyūjitai
+restorations (郎 → 郞, 真 → 眞) and dropped Japanese-variant normalisations
+(猫 → 貓, 内 → 內, 彦 → 彥, 聡 → 聰). The problem is that `fill_cjk` uses `jp2t`
+as "give me a Chinese base", which is not what `jp2t` promises, and the pipeline
+depends on `jp2t` → `t2s` round-tripping. It does for 真琴 (眞 → 真 is in `t2s`)
+and does not for 士郎正宗 (郞 → 郎 is not), so 1.4.1 leaves kyūjitai stranded in
+output labelled simplified Chinese. 6,663 names move. Nothing counts that — the
+bundle builds to the same tag total and quietly renders different glyphs.
+`test_opencc_produces_chinese_glyphs_not_japanese_variants` guards the pin.
 
 ## What is committed and what is not
 

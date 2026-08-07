@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from build_name_map import beautify_tag, build, character_en, fill_cjk, pick_character, pick_copyright, primary, shortest
+from build_name_map import beautify_tag, build, character_en, fill_cjk, normalize_chinese, pick_character, pick_copyright, primary, shortest
 
 
 def write(tmp_path, data):
@@ -109,3 +109,27 @@ def test_opencc_produces_chinese_glyphs_not_japanese_variants(chosen, lang, expe
     # builds to the same tag total and just renders wrong glyphs. If this fails
     # after a dependency bump, the bump is the bug.
     assert fill_cjk(dict(chosen))[lang] == expected
+
+
+@pytest.mark.parametrize(
+    ("supplied", "expected"),
+    [
+        ("未来日記", "未来日记"),      # wiki 的 zh 桶给的「简体名」其实是繁体
+        ("封神演義", "封神演义"),
+        ("愛知万博", "爱知万博"),
+        ("默天蕓", "默天芸"),
+        ("醋酸汁", "醋酸汁"),          # 已经正确的值必须原样保留
+        ("默天芸", "默天芸"),
+        ("碧蓝档案", "碧蓝档案"),
+    ],
+)
+def test_supplied_chinese_names_are_normalised_without_being_mangled(supplied, expected):
+    # fill_cjk 只在派生缺失字段时转换,直接给定的值它信任 —— 但 wiki 和 official 给的
+    # 「简体名」有 2493 个其实掺着繁体。归一化只用 t2s:对已经是简体的串它是恒等,
+    # 而 jp2t 会把共用字当日文倒转(醋酸汁 -> 酢酸汁,默天芸 -> 默天艺)。
+    assert normalize_chinese({"zh_hans": supplied})["zh_hans"] == expected
+
+
+def test_normalising_leaves_the_traditional_field_alone():
+    # 繁体字段本来就该是繁体:t2s 会简化掉它,jp2t 会咬它。
+    assert normalize_chinese({"zh_hant": "蔚藍檔案"})["zh_hant"] == "蔚藍檔案"

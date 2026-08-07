@@ -46,6 +46,30 @@ def fill_cjk(chosen: dict[str, str]) -> dict[str, str]:
     return chosen
 
 
+def normalize_chinese(chosen: dict[str, str]) -> dict[str, str]:
+    """把中文字段归一到该语言的规范字形。
+
+    供给的名字不能照单全收。fill_cjk 只在**派生**缺失字段时转换,直接给定的值它信任 ——
+    但 wiki 的 zh 桶和 LLM 的 official 经常给出掺着日文新字体或繁体的「简体名」:
+    「未来日記」「戦国BASARA」「封神演義」「銀牙伝説WEED」都是这么发出去的,占已发布
+    中文名的 2.3%,且与 opencc 版本无关。
+
+    **只用 t2s,不用 jp2t。** 对已经是中文的串跑 jp2t 会把共用字当成日文倒转回去:
+    `mirinsoup` 的日文名「酢酸汁」被正确转成「醋酸汁」后,再跑一遍 jp2t 又变回
+    「酢酸汁」(jp2t 双向映射 酢⇄醋);「默天蕓」正确简化成「默天芸」后,jp2t 会把
+    芸 当作 藝 的新字体再转成「默天艺」。t2s 对简体是恒等,不可能弄坏已经正确的值。
+
+    代价是纯日文新字体(戦/伝/錬 这类中文里不存在的字形)留了下来 —— 那需要一张
+    人工核过的字表,而不是一个会反向咬人的转换器。
+
+    繁体字段不动:它已经是繁体,t2s 会把它简化掉,jp2t 会咬它。
+    """
+    hans = chosen.get("zh_hans")
+    if hans:
+        chosen["zh_hans"] = _t2s.convert(hans)
+    return chosen
+
+
 def beautify_tag(tag: str) -> str:
     # Danbooru 的 tag 名是规范罗马名(snake_case),作为 artist 的 en 官方名:下划线转空格、按词首字母大写
     words = tag.replace("_", " ").split(" ")
@@ -133,7 +157,7 @@ def build(
             # 作品的官方英文名比罗马名好("Steins;Gate" 优于 "Steins;gate"),但 LLM 常
             # 只给 en+ja 或漏掉 en。缺了就兜底,否则整个 tag 连英文显示名都没有。
             chosen["en"] = en_fallback(tag)
-        result[tag] = fill_cjk(chosen)
+        result[tag] = normalize_chinese(fill_cjk(chosen))
     return result
 
 
