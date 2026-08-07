@@ -1589,9 +1589,10 @@ async function boot() {
   $("boot").hidden = true;
   for (const id of ["find", "app"]) $(id).hidden = false;
 
-  const fromHash = readHash();
-  const seed = fromHash.length ? fromHash : ["hatsune_miku", "genshin_impact", "blue_archive", "kantai_collection"].map((n) => state.bundle.findByName(n));
-  seed.slice(0, MAX_SERIES).forEach((i) => addTag(i, true));   // one render after the loop, not four
+  // No seeded selection: an empty chart puts the comparison list and the search
+  // box in front of a first-time reader, rather than four tags they did not pick
+  // and have to clear. A link with a hash still opens on exactly what it names.
+  readHash().slice(0, MAX_SERIES).forEach((i) => addTag(i, true));   // one render after the loop, not four
   syncHash();
   showMeta();   // applyLang ran before the bundle existed; this is its first real chance
   renderPresets();
