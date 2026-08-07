@@ -12,6 +12,11 @@ data/translations/*_names.json
 data/translations/*_name_map.json
 data/translations/_zh_work/
 data/translations/_char_work/
+# 审查工作目录:输入可从数据库和名称映射重新生成(每批约 1,100 行,20 批),
+# 输出是花钱买来的判断,留着当审计线索 —— 它们已经蒸馏进 zh_supplement/zh_rejected,
+# 但保留原始答案才能回头查某条修正是谁给的、批次里的锚点长什么样。
+data/translations/_zh_review/in_*.json
+data/translations/_zh_review/nulls_in.json
 site/
 logs/
 
