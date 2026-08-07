@@ -172,7 +172,7 @@
 
   /* ---- saved and preset comparisons ---- */
   .side { display: flex; flex-direction: column; min-height: 0; }
-  .side-list { overflow-y: auto; overscroll-behavior: contain; }
+  .side-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   .preset {
     display: flex; align-items: center; gap: 6px; padding: 7px 10px;
     border-bottom: 1px solid var(--hairline);
@@ -332,10 +332,10 @@
 
     /* A time series wants to be wider than tall. Left to fill a portrait phone
        the plot lands near a 0.8 aspect, which reads as steep and cramped, so it
-       is capped. The slack used to go to the readout, which then drew a 200px
-       box around 60px of labels. It now falls below the card instead: margin is
-       quieter than a stretched panel, and the card ends where its content does. */
-    .plot { flex: 0 0 auto; height: min(46dvh, 76vw); }
+       is capped -- the cap is what frees the room below it. That room used to go
+       to the readout, which drew a 200px panel around 60px of labels; it goes to
+       the comparison list now, which is content rather than a stretched box. */
+    .plot { flex: 0 0 auto; height: min(42dvh, 68vw); }
     .readout { flex: none; max-height: 34dvh; }
     .app { flex: 1 1 auto; border-bottom: 1px solid var(--hairline); border-radius: 0 0 10px 10px; margin-bottom: 14px; }
     .main { flex: none; }
