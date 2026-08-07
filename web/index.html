@@ -61,6 +61,10 @@
   }
   h1 { font-size: 14.5px; font-weight: 620; margin: 0; letter-spacing: -0.01em; white-space: nowrap; }
   .meta { color: var(--text-muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stamp { color: var(--text-muted); font-size: 11.5px; white-space: nowrap; flex: none; }
+  .stamp.link { text-decoration: none; border-bottom: 1px solid var(--hairline-strong); }
+  .stamp.link:hover { color: var(--text-primary); border-bottom-color: currentColor; }
+  .meta:empty, .stamp:empty { display: none; }
   .btn {
     background: var(--surface-1); border: 1px solid var(--hairline); border-radius: 6px;
     padding: 5px 8px; cursor: pointer; color: var(--text-secondary); font-size: 12px; flex: none;
@@ -241,6 +245,8 @@
       <div class="suggest" id="suggest" role="listbox"></div>
     </div>
     <span class="meta" id="meta"></span>
+    <span class="stamp" id="stamp"></span>
+    <a class="stamp link" id="repo" href="https://github.com/Jannchie/danbooru-tag-index" target="_blank" rel="noopener">GitHub</a>
     <select class="btn" id="lang" aria-label="Language">
       <option value="zh_hans">简体</option>
       <option value="zh_hant">繁體</option>
@@ -301,7 +307,7 @@ const DEC = new TextDecoder();
 const CACHE_LIMIT = 512;
 
 // Binary layout, mirroring HEADER_FORMAT / RECORD_FORMAT in export_index_bundle.py.
-const H = { version: 4, nTags: 6, nMonths: 10, nCats: 12, totals: 16, cats: 20, table: 24, names: 28, i18n: 32, search: 36, searchLen: 40, values: 44, epoch: 48, firstComplete: 50, lastComplete: 52 };
+const H = { version: 4, nTags: 6, nMonths: 10, nCats: 12, totals: 16, cats: 20, table: 24, names: 28, i18n: 32, search: 36, searchLen: 40, values: 44, epoch: 48, firstComplete: 50, lastComplete: 52, built: 54 };
 const R = { size: 24, nameOff: 0, nameLen: 4, category: 5, deprecated: 6, firstM: 7, span: 9, dataOff: 11, postCount: 15, i18nOff: 19 };
 
 // ---------------------------------------------------------------- i18n
@@ -311,31 +317,31 @@ const UI = {
     rel:"相对指数", share:"份额", posts:"投稿量", linear:"线性", log:"对数",
     smooth:"平滑", raw:"原始", mo:"{n} 月", all:"全部", y10:"10年", y5:"5年", y2:"2年",
     empty:"搜索标签以添加曲线", limit:"最多 {n} 条", tags:"个标签", posts_total:"篇投稿",
-    relUnit:"相对同类均值", shareUnit:"万分比", postsUnit:"篇/月", failed:"加载失败：",
+    relUnit:"相对同类均值", shareUnit:"万分比", postsUnit:"篇/月", failed:"加载失败：", updated:"更新于",
     serve:"请从仓库根目录启动本地服务器后访问 /web/：python -m http.server 8000" },
   zh_hant: { title:"Danbooru 標籤指數", loading:"正在載入指數資料…", search:"搜尋標籤：初音未來 / hatsune_miku / けものみみ",
     rel:"相對指數", share:"份額", posts:"投稿量", linear:"線性", log:"對數",
     smooth:"平滑", raw:"原始", mo:"{n} 月", all:"全部", y10:"10年", y5:"5年", y2:"2年",
     empty:"搜尋標籤以加入曲線", limit:"最多 {n} 條", tags:"個標籤", posts_total:"篇投稿",
-    relUnit:"相對同類均值", shareUnit:"萬分比", postsUnit:"篇/月", failed:"載入失敗：",
+    relUnit:"相對同類均值", shareUnit:"萬分比", postsUnit:"篇/月", failed:"載入失敗：", updated:"更新於",
     serve:"請從倉庫根目錄啟動本機伺服器後存取 /web/：python -m http.server 8000" },
   ja: { title:"Danbooru タグ指数", loading:"指数データを読み込み中…", search:"タグを検索：初音ミク / hatsune_miku / けものみみ",
     rel:"相対指数", share:"シェア", posts:"投稿数", linear:"線形", log:"対数",
     smooth:"平滑化", raw:"生値", mo:"{n}ヶ月", all:"全期間", y10:"10年", y5:"5年", y2:"2年",
     empty:"タグを検索して追加", limit:"最大 {n} 件", tags:"件のタグ", posts_total:"件の投稿",
-    relUnit:"同カテゴリ平均比", shareUnit:"万分率", postsUnit:"件/月", failed:"読み込み失敗：",
+    relUnit:"同カテゴリ平均比", shareUnit:"万分率", postsUnit:"件/月", failed:"読み込み失敗：", updated:"更新",
     serve:"リポジトリ直下でローカルサーバーを起動し /web/ を開いてください：python -m http.server 8000" },
   en: { title:"Danbooru Tag Index", loading:"Loading index data…", search:"Search tags: hatsune_miku / 初音ミク / けものみみ",
     rel:"Relative", share:"Share", posts:"Posts", linear:"Linear", log:"Log",
     smooth:"Smoothing", raw:"Raw", mo:"{n} mo", all:"All", y10:"10y", y5:"5y", y2:"2y",
     empty:"Search for tags to plot", limit:"Max {n}", tags:"tags", posts_total:"posts",
-    relUnit:"vs category average", shareUnit:"per 10k", postsUnit:"posts/mo", failed:"Failed to load: ",
+    relUnit:"vs category average", shareUnit:"per 10k", postsUnit:"posts/mo", failed:"Failed to load: ", updated:"Updated",
     serve:"Serve the repo root and open /web/: python -m http.server 8000" },
   ko: { title:"Danbooru 태그 지수", loading:"지수 데이터를 불러오는 중…", search:"태그 검색: 하츠네미쿠 / hatsune_miku / けものみみ",
     rel:"상대 지수", share:"점유율", posts:"게시물", linear:"선형", log:"로그",
     smooth:"평활화", raw:"원본", mo:"{n}개월", all:"전체", y10:"10년", y5:"5년", y2:"2년",
     empty:"태그를 검색해 추가하세요", limit:"최대 {n}개", tags:"개 태그", posts_total:"개 게시물",
-    relUnit:"동일 분류 평균 대비", shareUnit:"만분율", postsUnit:"개/월", failed:"불러오기 실패: ",
+    relUnit:"동일 분류 평균 대비", shareUnit:"만분율", postsUnit:"개/월", failed:"불러오기 실패: ", updated:"업데이트",
     serve:"저장소 루트에서 로컬 서버를 실행한 뒤 /web/ 을 여세요: python -m http.server 8000" },
 };
 const LOCALE = { zh_hans: "zh-CN", zh_hant: "zh-TW", ja: "ja-JP", en: "en-US", ko: "ko-KR" };
@@ -366,6 +372,11 @@ class Bundle {
     // cut-off. The exporter decides; charting them would show dips that never happened.
     this.firstComplete = this.dv.getUint16(H.firstComplete, true);
     this.lastComplete = this.dv.getUint16(H.lastComplete, true);
+
+    // YYYYMMDD, written into bytes the format reserved. A bundle built before
+    // the field existed reads 0 -- show nothing rather than invent a date.
+    const built = this.dv.getUint32(H.built, true);
+    this.built = built ? `${Math.floor(built / 10000)}-${String(Math.floor(built / 100) % 100).padStart(2, "0")}-${String(built % 100).padStart(2, "0")}` : "";
 
     this.totals = new Array(this.nMonths);
     for (let i = 0; i < this.nMonths; i++) this.totals[i] = this.dv.getUint32(this.totalsOff + i * 4, true);
@@ -1000,14 +1011,15 @@ function showSmooth() {
   $("smooth-v").textContent = state.smooth <= 1 ? t("raw") : t("mo").replace("{n}", state.smooth);
 }
 
-/** Coverage and totals. The month range is the charted one -- both ends can be
- *  partial, and naming a month the chart does not draw would claim data that is
- *  not there. */
+/** Coverage, totals and provenance. The month range is the charted one --
+ *  both ends can be partial, and naming a month the chart does not draw would
+ *  claim data that is not there. */
 function showMeta() {
   const b = state.bundle;
   if (!b) return;
   const posts = b.totals.slice(b.firstComplete, b.lastComplete + 1).reduce((a, c) => a + c, 0);
   $("meta").textContent = `${fmtInt.format(b.nTags)} ${t("tags")} · ${monthLabel(b.firstComplete)}–${monthLabel(b.lastComplete)} · ${fmtInt.format(posts)} ${t("posts_total")}`;
+  $("stamp").textContent = b.built ? `${t("updated")} ${b.built}` : "";
 }
 
 function applyLang() {

@@ -32,6 +32,15 @@ def test_format_strings_define_the_documented_sizes():
     assert struct.calcsize(RECORD_FORMAT) == TAG_RECORD_SIZE
 
 
+def test_build_date_rides_in_the_reserved_header_bytes(bundle):
+    # It went into padding rather than a new field, so the fixed offsets a client
+    # already reads must not move -- and an exporter that omits it writes 0,
+    # which the client shows as "unknown" instead of a wrong date.
+    reader, _, _ = bundle
+    assert reader.built == 20260101
+    assert reader.totals_off == HEADER_SIZE
+
+
 def test_encode_varint_boundaries():
     out = bytearray()
     encode_varint(0, out)
@@ -71,7 +80,7 @@ class BundleReader:
             magic, self.version, self.n_tags, self.n_months, self.n_categories,
             self.totals_off, self.cat_off, self.table_off, self.names_off,
             self.i18n_off, self.search_off, self.search_len, self.values_off,
-            self.epoch_month, self.first_complete, self.last_complete,
+            self.epoch_month, self.first_complete, self.last_complete, self.built,
         ) = struct.unpack_from(HEADER_FORMAT, buf, 0)
         assert magic == MAGIC
         self.buf = buf
@@ -177,13 +186,13 @@ def write_index_parquets(con, tmp_path, monthly_rows, total_rows, dim_rows, cate
         copy("fact_category_monthly.parquet", "category, month, posts, n_eff", category_rows)
 
 
-def build(con, tmp_path, min_post_count=0, name_maps=None, other_names=None, converters=None):
+def build(con, tmp_path, min_post_count=0, name_maps=None, other_names=None, converters=None, built=20260101):
     rows, totals, epoch = load_series(con, tmp_path, min_post_count)
     categories = load_categories(con, tmp_path, f"{epoch}-01", len(totals))
     sections, stats = build_sections(rows, totals, categories, name_maps or {}, other_names or {}, converters)
     year, month = (int(p) for p in epoch.split("-"))
     first, last = complete_month_range(totals)
-    buf = assemble(sections, stats["tags"], len(totals), len(categories), year * 12 + (month - 1), first, last)
+    buf = assemble(sections, stats["tags"], len(totals), len(categories), year * 12 + (month - 1), first, last, built)
     return BundleReader(buf), epoch, stats
 
 

@@ -9,7 +9,7 @@ The layout is defined by HEADER_FORMAT and RECORD_FORMAT alone -- every size is
 computed from them and every section offset is written into the header, so a
 reader never recomputes a position that the writer could change:
 
-    header       64 B    magic, version, counts, section offsets, epoch
+    header       64 B    magic, version, counts, section offsets, epoch, build date
     totals       n_months x u32       site-wide posts per month
     categories   per category: id, monthly posts, monthly n_eff
     tag table    n_tags x 24 B        fixed-width, sorted by name for binary search
@@ -28,6 +28,14 @@ properties of the data: a client that hardcoded the epoch would mislabel every
 point on the x axis if the index were ever rebuilt from a different range, and
 one that guessed at completeness would confuse a partial sync at either end with
 a real change in activity.
+
+It also carries the build date, as a plain YYYYMMDD integer. That is not a
+property of the data but of this run, and it is here rather than in a sidecar
+file so the page can show it without a second request -- the client already has
+to fetch the bundle, and a date that arrives separately can disagree with the
+data it describes. It occupies reserved header bytes, so an older client reads
+past it unchanged and a newer one reading an older bundle sees 0, which it
+renders as "unknown" rather than a wrong date.
 
 The category section carries each category's monthly post total and `n_eff`
 (the effective number of competitors, 1/HHI), which together let the client
@@ -54,6 +62,7 @@ import argparse
 import json
 import re
 import struct
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Callable, NamedTuple
 
@@ -74,7 +83,7 @@ VERSION = 4
 
 # The format lives in these two strings. Sizes are derived, never restated in a
 # comment, so a field added to either cannot silently break a reader's stride.
-HEADER_FORMAT = "<4sHIHB3xIIIIIIIIHHH10x"
+HEADER_FORMAT = "<4sHIHB3xIIIIIIIIHHHI6x"
 RECORD_FORMAT = "<IBBBHHIIIx"
 HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
 TAG_RECORD_SIZE = struct.calcsize(RECORD_FORMAT)
@@ -122,6 +131,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", type=str, default=None, help="Bundle path (default: <index-dir>/index_bundle.bin)")
     parser.add_argument("--min-post-count", type=int, default=0, help="Drop tags below this lifetime post count.")
     parser.add_argument("--no-i18n", action="store_true", help="Skip multilingual names entirely.")
+    parser.add_argument("--built", type=str, default=None, help="Build date as YYYY-MM-DD (default: today, UTC).")
     return parser.parse_args()
 
 
@@ -447,7 +457,7 @@ def build_sections(
     return Sections(totals_blob, bytes(categories_blob), bytes(table), bytes(names), bytes(i18n), bytes(search), bytes(values)), stats
 
 
-def assemble(sections: Sections, n_tags: int, n_months: int, n_categories: int, epoch_month: int, first_complete: int, last_complete: int) -> bytes:
+def assemble(sections: Sections, n_tags: int, n_months: int, n_categories: int, epoch_month: int, first_complete: int, last_complete: int, built: int) -> bytes:
     offsets = {}
     cursor = HEADER_SIZE
     for field in ("totals", "categories", "table", "names", "i18n", "search", "values"):
@@ -459,7 +469,7 @@ def assemble(sections: Sections, n_tags: int, n_months: int, n_categories: int, 
         MAGIC, VERSION, n_tags, n_months, n_categories,
         offsets["totals"], offsets["categories"], offsets["table"], offsets["names"],
         offsets["i18n"], offsets["search"], len(sections.search), offsets["values"],
-        epoch_month, first_complete, last_complete,
+        epoch_month, first_complete, last_complete, built,
     )
     return b"".join([header, *sections])
 
@@ -487,13 +497,15 @@ def main() -> None:
 
     sections, stats = build_sections(rows, totals, categories, name_maps, other_names, converters)
     first_complete, last_complete = complete_month_range(totals)
-    bundle = assemble(sections, stats["tags"], len(totals), len(categories), epoch_year * 12 + (epoch_mon - 1), first_complete, last_complete)
+    built = date.fromisoformat(args.built) if args.built else datetime.now(timezone.utc).date()
+    bundle = assemble(sections, stats["tags"], len(totals), len(categories), epoch_year * 12 + (epoch_mon - 1), first_complete, last_complete, built.year * 10000 + built.month * 100 + built.day)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_bytes(bundle)
 
     meta = {
         "version": VERSION,
         "epoch": epoch_str,
+        "built": built.isoformat(),
         "months": len(totals),
         "complete_months": [first_complete, last_complete],
         "categories": [c[0] for c in categories],
