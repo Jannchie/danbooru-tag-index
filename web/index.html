@@ -168,6 +168,47 @@
     margin: 0 14px 14px; border: 1px solid var(--hairline); border-radius: 10px;
     background: var(--surface-1); overflow: hidden;
   }
+  .main { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+
+  /* ---- saved and preset comparisons ---- */
+  .side { display: flex; flex-direction: column; min-height: 0; }
+  .side-list { overflow-y: auto; overscroll-behavior: contain; }
+  .preset {
+    display: flex; align-items: center; gap: 6px; padding: 7px 10px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .preset:hover { background: var(--surface-2); }
+  .preset-go {
+    flex: 1 1 auto; min-width: 0; border: 0; background: none; cursor: pointer;
+    text-align: start; padding: 0; display: flex; flex-direction: column; gap: 1px;
+  }
+  .preset-go b { font-size: 12.5px; font-weight: 560; color: var(--text-secondary); }
+  /* The member tags are the whole reason to pick one preset over another, so
+     they are shown rather than hidden behind a hover. */
+  .preset-go span {
+    font-size: 10.5px; color: var(--text-muted);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .preset:hover .preset-go b { color: var(--text-primary); }
+  .preset-del {
+    flex: none; border: 0; background: none; cursor: pointer; padding: 2px;
+    color: var(--text-muted); display: flex; align-items: center; opacity: 0;
+  }
+  .preset-del svg { width: 12px; height: 12px; }
+  .preset:hover .preset-del, .preset-del:focus-visible { opacity: 1; }
+  .side-add, .side-restore {
+    flex: none; border: 0; background: none; cursor: pointer; text-align: start;
+    padding: 9px 10px; font-size: 12px; color: var(--text-muted);
+    display: flex; align-items: center; gap: 5px;
+  }
+  .side-add svg { width: 13px; height: 13px; flex: none; }
+  .side-add:hover, .side-restore:hover { color: var(--text-primary); background: var(--surface-2); }
+  .side-restore { font-size: 11px; padding-top: 0; }
+
+  @media (min-width: 621px) {
+    .app { flex-direction: row; }
+    .side { order: -1; flex: none; width: 186px; border-right: 1px solid var(--hairline); }
+  }
 
   /* ---- controls: wrap onto more lines rather than scroll options out of sight ---- */
   .ctl {
@@ -294,9 +335,15 @@
        is capped. The slack used to go to the readout, which then drew a 200px
        box around 60px of labels. It now falls below the card instead: margin is
        quieter than a stretched panel, and the card ends where its content does. */
-    .plot { flex: 0 0 auto; height: min(52dvh, 88vw); }
+    .plot { flex: 0 0 auto; height: min(46dvh, 76vw); }
     .readout { flex: none; max-height: 34dvh; }
-    .app { flex: 0 1 auto; border-bottom: 1px solid var(--hairline); border-radius: 0 0 10px 10px; margin-bottom: 14px; }
+    .app { flex: 1 1 auto; border-bottom: 1px solid var(--hairline); border-radius: 0 0 10px 10px; margin-bottom: 14px; }
+    .main { flex: none; }
+    .side { flex: 1 1 auto; border-top: 1px solid var(--hairline); }
+    .preset { padding: 9px 11px; }
+    /* No hover on a touch screen, so the delete control cannot hide behind one. */
+    .preset-del { opacity: 1; padding: 4px; }
+    .preset-del svg { width: 14px; height: 14px; }
   }
   @media (max-width: 480px) {
     /* The date is what tips the bar onto a second row; the controls that do
@@ -343,6 +390,7 @@
   </div>
 
   <div class="app" id="app" hidden>
+  <div class="main">
   <div class="ctl" id="ctl">
     <div class="seg" id="metric">
       <button data-v="rel" data-t="rel" aria-pressed="true"></button>
@@ -374,6 +422,13 @@
   <div class="plot" id="plot"><svg id="chart" role="img"></svg></div>
   </div>
 
+  <aside class="side" id="side">
+    <div class="side-list" id="presetlist"></div>
+    <button class="side-add" id="savecur"></button>
+    <button class="side-restore" id="restoredefaults" hidden></button>
+  </aside>
+  </div>
+
 <script>
 "use strict";
 
@@ -394,6 +449,34 @@ const catLabel = (i) => {
   const slug = CAT_NAME[state.bundle.categoryOf(i)];
   return slug ? (CAT_I18N[state.lang] || CAT_I18N.en)[slug] || slug : "";
 };
+const BUILTIN = [
+  {
+    id: "gacha", tags: ["blue_archive", "genshin_impact", "honkai:_star_rail", "zenless_zone_zero"],
+    metric: "rel", scale: "lin", smooth: 6, range: 120,
+    name: { zh_hans: "手游时代", zh_hant: "手遊時代", ja: "ソシャゲ時代", en: "The gacha era", ko: "가챠 시대" },
+  },
+  {
+    id: "fleet", tags: ["kantai_collection", "azur_lane", "girls'_frontline", "blue_archive"],
+    metric: "rel", scale: "lin", smooth: 6, range: 0,
+    name: { zh_hans: "舰娘世代交替", zh_hant: "艦娘世代交替", ja: "艦これ以後", en: "Fleet-game succession", ko: "함대 게임 세대교체" },
+  },
+  {
+    id: "vtuber", tags: ["hololive", "nijisanji"],
+    metric: "rel", scale: "lin", smooth: 6, range: 120,
+    name: { zh_hans: "VTuber 事务所", zh_hant: "VTuber 事務所", ja: "VTuber事務所", en: "VTuber agencies", ko: "VTuber 소속사" },
+  },
+  {
+    id: "evergreen", tags: ["touhou", "fate_(series)", "pokemon", "vocaloid"],
+    metric: "rel", scale: "lin", smooth: 12, range: 0,
+    name: { zh_hans: "长青 IP", zh_hant: "長青 IP", ja: "定番シリーズ", en: "The evergreens", ko: "스테디셀러" },
+  },
+  {
+    id: "traits", tags: ["animal_ears", "twintails", "ponytail", "glasses"],
+    metric: "share", scale: "lin", smooth: 12, range: 0,
+    name: { zh_hans: "萌属性", zh_hant: "萌屬性", ja: "萌え属性", en: "Character traits", ko: "모에 속성" },
+  },
+];
+
 const DEC = new TextDecoder();
 
 // Lucide paths, inlined: the page has no build step and no network budget for an
@@ -402,6 +485,7 @@ const ICONS = {
   github: ["M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4", "M9 18c-4.51 2-5-2-7-2"],
   contrast: ["M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20", "M12 18a6 6 0 0 0 0-12z"],
   x: ["M18 6 6 18", "m6 6 12 12"],
+  plus: ["M5 12h14", "M12 5v14"],
 };
 
 function icon(name) {
@@ -435,31 +519,31 @@ const UI = {
     rel:"相对指数", share:"份额", posts:"投稿量", linear:"线性", log:"对数",
     smooth:"平滑", raw:"原始", mo:"{n} 月", all:"全部", y10:"10年", y5:"5年", y2:"2年",
     empty:"搜索标签以添加曲线", limit:"最多 {n} 条", tags:"个标签", posts_total:"篇投稿",
-    relUnit:"相对典型同类", shareUnit:"万分比", postsUnit:"篇/月", failed:"加载失败：", updated:"更新于",
+    relUnit:"相对典型同类", shareUnit:"万分比", postsUnit:"篇/月", failed:"加载失败：", updated:"更新于", presets:"对比图", save:"保存当前图表", restore:"恢复内置对比图", del:"删除",
     serve:"请从仓库根目录启动本地服务器后访问 /web/：python -m http.server 8000" },
   zh_hant: { title:"Danbooru 標籤指數", loading:"正在載入指數資料…", search:"搜尋標籤：初音未來 / hatsune_miku / けものみみ",
     rel:"相對指數", share:"份額", posts:"投稿量", linear:"線性", log:"對數",
     smooth:"平滑", raw:"原始", mo:"{n} 月", all:"全部", y10:"10年", y5:"5年", y2:"2年",
     empty:"搜尋標籤以加入曲線", limit:"最多 {n} 條", tags:"個標籤", posts_total:"篇投稿",
-    relUnit:"相對典型同類", shareUnit:"萬分比", postsUnit:"篇/月", failed:"載入失敗：", updated:"更新於",
+    relUnit:"相對典型同類", shareUnit:"萬分比", postsUnit:"篇/月", failed:"載入失敗：", updated:"更新於", presets:"對比圖", save:"儲存目前圖表", restore:"還原內建對比圖", del:"刪除",
     serve:"請從倉庫根目錄啟動本機伺服器後存取 /web/：python -m http.server 8000" },
   ja: { title:"Danbooru タグ指数", loading:"指数データを読み込み中…", search:"タグを検索：初音ミク / hatsune_miku / けものみみ",
     rel:"相対指数", share:"シェア", posts:"投稿数", linear:"線形", log:"対数",
     smooth:"平滑化", raw:"生値", mo:"{n}ヶ月", all:"全期間", y10:"10年", y5:"5年", y2:"2年",
     empty:"タグを検索して追加", limit:"最大 {n} 件", tags:"件のタグ", posts_total:"件の投稿",
-    relUnit:"同カテゴリ標準比", shareUnit:"万分率", postsUnit:"件/月", failed:"読み込み失敗：", updated:"更新",
+    relUnit:"同カテゴリ標準比", shareUnit:"万分率", postsUnit:"件/月", failed:"読み込み失敗：", updated:"更新", presets:"比較セット", save:"現在の図を保存", restore:"既定のセットを戻す", del:"削除",
     serve:"リポジトリ直下でローカルサーバーを起動し /web/ を開いてください：python -m http.server 8000" },
   en: { title:"Danbooru Tag Index", loading:"Loading index data…", search:"Search tags: hatsune_miku / 初音ミク / けものみみ",
     rel:"Relative", share:"Share", posts:"Posts", linear:"Linear", log:"Log",
     smooth:"Smoothing", raw:"Raw", mo:"{n} mo", all:"All", y10:"10y", y5:"5y", y2:"2y",
     empty:"Search for tags to plot", limit:"Max {n}", tags:"tags", posts_total:"posts",
-    relUnit:"vs typical peer", shareUnit:"per 10k", postsUnit:"posts/mo", failed:"Failed to load: ", updated:"Updated",
+    relUnit:"vs typical peer", shareUnit:"per 10k", postsUnit:"posts/mo", failed:"Failed to load: ", updated:"Updated", presets:"Comparisons", save:"Save this chart", restore:"Restore built-in sets", del:"Remove",
     serve:"Serve the repo root and open /web/: python -m http.server 8000" },
   ko: { title:"Danbooru 태그 지수", loading:"지수 데이터를 불러오는 중…", search:"태그 검색: 하츠네미쿠 / hatsune_miku / けものみみ",
     rel:"상대 지수", share:"점유율", posts:"게시물", linear:"선형", log:"로그",
     smooth:"평활화", raw:"원본", mo:"{n}개월", all:"전체", y10:"10년", y5:"5년", y2:"2년",
     empty:"태그를 검색해 추가하세요", limit:"최대 {n}개", tags:"개 태그", posts_total:"개 게시물",
-    relUnit:"동일 분류 표준 대비", shareUnit:"만분율", postsUnit:"개/월", failed:"불러오기 실패: ", updated:"업데이트",
+    relUnit:"동일 분류 표준 대비", shareUnit:"만분율", postsUnit:"개/월", failed:"불러오기 실패: ", updated:"업데이트", presets:"비교 세트", save:"현재 차트 저장", restore:"기본 세트 복원", del:"삭제",
     serve:"저장소 루트에서 로컬 서버를 실행한 뒤 /web/ 을 여세요: python -m http.server 8000" },
 };
 const LOCALE = { zh_hans: "zh-CN", zh_hant: "zh-TW", ja: "ja-JP", en: "en-US", ko: "ko-KR" };
@@ -1130,6 +1214,94 @@ function removeTag(idx) {
   syncHash();
 }
 
+// ---------------------------------------------------------------- comparisons
+
+const SAVED_KEY = "dbix-saved", HIDDEN_KEY = "dbix-hidden";
+
+function readStore(key) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }   // a hand-edited or truncated entry must not break boot
+}
+const writeStore = (key, value) => localStorage.setItem(key, JSON.stringify(value));
+
+/** Built-ins the reader has dismissed, plus everything they have saved. */
+function presets() {
+  const hidden = new Set(readStore(HIDDEN_KEY));
+  const mine = readStore(SAVED_KEY).map((entry) => ({ ...entry, mine: true }));
+  return [...mine, ...BUILTIN.filter((b) => !hidden.has(b.id))];
+}
+
+/** A saved set is named by its members, so the name follows the UI language
+ *  instead of freezing whatever language it was saved in. */
+function presetLabel(preset) {
+  if (!preset.mine) return preset.name[state.lang] || preset.name.en;
+  return memberNames(preset).slice(0, 2).join(" · ") || "—";
+}
+
+function memberNames(preset) {
+  return preset.tags.map((raw) => {
+    const idx = state.bundle.findByName(raw);
+    return idx >= 0 ? nameOf(idx) : raw;
+  });
+}
+
+function renderPresets() {
+  const list = $("presetlist");
+  list.replaceChildren();
+  for (const preset of presets()) {
+    const row = el("div", "preset");
+    const go = el("button", "preset-go");
+    go.append(el("b", "", presetLabel(preset)), el("span", "", memberNames(preset).join(" · ")));
+    go.onclick = () => applyPreset(preset);
+
+    const del = el("button", "preset-del");
+    del.appendChild(icon("x"));
+    del.title = t("del");
+    del.setAttribute("aria-label", `${t("del")}: ${presetLabel(preset)}`);
+    del.onclick = () => dropPreset(preset);
+
+    row.append(go, del);
+    list.appendChild(row);
+  }
+  $("restoredefaults").hidden = readStore(HIDDEN_KEY).length === 0;
+}
+
+/** Replaces the selection and the four chart controls in one undoable step.
+ *  Goes through restore() so there is exactly one place that knows how to put
+ *  a whole chart state back onto the controls. */
+function applyPreset(preset) {
+  const picked = preset.tags
+    .map((raw) => state.bundle.findByName(raw))
+    .filter((idx) => idx >= 0)
+    .slice(0, MAX_SERIES)
+    .map((idx, slot) => [idx, slot, 0]);
+  if (!picked.length) return;
+  commit();
+  restore(JSON.stringify([picked, preset.metric, preset.scale, preset.smooth, preset.range]));
+}
+
+function dropPreset(preset) {
+  if (preset.mine) {
+    writeStore(SAVED_KEY, readStore(SAVED_KEY).filter((entry) => entry.id !== preset.id));
+  } else {
+    writeStore(HIDDEN_KEY, [...new Set([...readStore(HIDDEN_KEY), preset.id])]);
+  }
+  renderPresets();
+}
+
+function saveCurrent() {
+  if (!state.picked.length) return;
+  const entry = {
+    id: "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    tags: state.picked.map((p) => state.bundle.name(p.idx)),
+    metric: state.metric, scale: state.scale, smooth: state.smooth, range: state.range,
+  };
+  writeStore(SAVED_KEY, [entry, ...readStore(SAVED_KEY)]);
+  renderPresets();
+}
+
 // ---------------------------------------------------------------- search UI
 
 let sugIdx = -1, sugHits = [];
@@ -1252,9 +1424,13 @@ function applyLang() {
   showSmooth();
   for (const button of document.querySelectorAll(".seg button")) button.textContent = t(button.dataset.t);
   $("chart").setAttribute("aria-label", t("title"));
+  $("side").setAttribute("aria-label", t("presets"));
+  $("savecur").replaceChildren(icon("plus"), document.createTextNode(" " + t("save")));
+  $("restoredefaults").textContent = t("restore");
   const b = state.bundle;
   if (b) {
     showMeta();
+    renderPresets();
     renderSeriesList();
     render();
     if ($("q").value) renderSuggest($("q").value);
@@ -1377,6 +1553,10 @@ async function boot() {
   seed.slice(0, MAX_SERIES).forEach((i) => addTag(i, true));   // one render after the loop, not four
   syncHash();
   showMeta();   // applyLang ran before the bundle existed; this is its first real chance
+  renderPresets();
+
+  $("savecur").onclick = saveCurrent;
+  $("restoredefaults").onclick = () => { localStorage.removeItem(HIDDEN_KEY); renderPresets(); };
 
   const q = $("q");
   let debounce = 0;
