@@ -24,6 +24,9 @@ LANG_KEYS = ("en", "ja", "ko", "zh_hans", "zh_hant")
 
 OVERRIDES_FILENAME = "han_language_overrides.json"
 
+# artist 不在这里:画师 tag 整个不进索引(见 build_tag_index.ARTIST_CATEGORY),
+# 别名桶做出来也没有 tag 可挂。它曾经从 artists 端点取(wiki 的 other_names 对
+# artist 几乎为空),要恢复的话那条 JOIN 是起点。
 CATEGORY_SOURCES = {
     # 作品名:wiki 的 other_names 就是 tag 的多语言译名
     "copyright": """
@@ -39,19 +42,12 @@ CATEGORY_SOURCES = {
         WHERE t.category = 4 AND t.post_count > 0
           AND w.is_deleted = 0 AND w.other_names != '[]'
     """,
-    # 作者名:别名在 artists 端点(wiki 的 other_names 对 artist 几乎为空)
-    "artist": """
-        SELECT t.name, a.other_names FROM tags t
-        JOIN artists a ON a.name = t.name
-        WHERE t.category = 1 AND t.post_count > 0
-          AND a.is_deleted = 0 AND a.other_names != '[]'
-    """,
 }
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Export multilingual name mappings for artist/copyright tags as JSON."
+        description="Export multilingual name mappings for copyright/character tags as JSON."
     )
     parser.add_argument("--database", type=str, default=str(DANBOORU_DB_PATH))
     parser.add_argument("--output-dir", type=str, default=str(TRANSLATIONS_DIR))

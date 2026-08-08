@@ -64,7 +64,7 @@ jobs:
           # Named individually, not `*_names.json`: that glob also matches
           # wiki_other_names.json, which belongs in data/index. Moving it away
           # cost 11,634 tags their multilingual search on a green build.
-          for f in character_names.json copyright_names.json artist_names.json; do
+          for f in character_names.json copyright_names.json; do
             mv "data/index/$f" data/translations/
           done
           ls -la data/index data/translations

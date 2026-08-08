@@ -22,9 +22,9 @@ import duckdb
 from _paths import INDEX_DIR, TRANSLATIONS_DIR
 
 BATCH = 100
-CATEGORY_NAME = {1: "artist", 3: "copyright", 4: "character"}
-# 只有这两类值得翻译:general/meta 用英文 tag 名本身就是通行叫法,artist 是人名,
-# 音译画师笔名的收益远低于出错的代价。
+CATEGORY_NAME = {3: "copyright", 4: "character"}
+# 索引里的另外两类不在这:general/meta 用英文 tag 名本身就是通行叫法,由
+# import_general_names.py 单独处理。(artist 根本不进索引,见 build_tag_index.py。)
 WANTED_CATEGORIES = (3, 4)
 WORK_DIRNAME = "_zh_work"
 # 审查的批次输出必须和补全的分开存放。两遍的 out_NNNN.json 同名,共用一个目录会让

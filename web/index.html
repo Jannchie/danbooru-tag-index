@@ -9,13 +9,13 @@
 <!-- The page renders from a binary the crawler will not parse, so everything a
      crawler gets has to be here. Absolute URLs throughout: og:image is fetched
      by servers that have no page to resolve a relative path against. -->
-<meta name="description" content="Monthly popularity for 76,000 Danbooru tags since 2005: raw posts, share of the site, and a fragmentation-adjusted index. Searchable in Chinese, Japanese, English and Korean.">
+<meta name="description" content="Monthly popularity for 52,000 Danbooru tags since 2005: raw posts, share of the site, and a fragmentation-adjusted index. Searchable in Chinese, Japanese, English and Korean.">
 <link rel="canonical" href="https://jannchie.github.io/danbooru-tag-index/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Danbooru Tag Index">
 <meta property="og:url" content="https://jannchie.github.io/danbooru-tag-index/">
 <meta property="og:title" content="Danbooru Tag Index">
-<meta property="og:description" content="Twenty years of anime tag popularity, month by month. 76,000 tags, three normalisations, five languages.">
+<meta property="og:description" content="Twenty years of anime tag popularity, month by month. 52,000 tags, three normalisations, five languages.">
 <meta property="og:image" content="https://jannchie.github.io/danbooru-tag-index/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -28,7 +28,7 @@
   "@context": "https://schema.org",
   "@type": "Dataset",
   "name": "Danbooru Tag Index",
-  "description": "Monthly post counts for every Danbooru tag above 100 lifetime posts, from 2005-05 onwards, normalised three ways: raw posts, share of all posts, and a within-category index adjusted for how fragmented the category has become.",
+  "description": "Monthly post counts for every Danbooru tag above 100 lifetime posts except artists, from 2005-05 onwards, normalised three ways: raw posts, share of all posts, and a within-category index adjusted for how fragmented the category has become.",
   "url": "https://jannchie.github.io/danbooru-tag-index/",
   "temporalCoverage": "2005-05/..",
   "creator": { "@type": "Person", "name": "Jianqi Pan" },
@@ -446,13 +446,16 @@ const MAX_SERIES = 8;
 const SEGMENTS = ["metric", "scale", "range"];   // element id doubles as the state key
 const LANGS = ["zh_hans", "zh_hant", "ja", "en", "ko"];   // slot order is part of the format
 const ALIAS_CODE = 255;
-const CAT_NAME = { 0: "general", 1: "artist", 3: "copyright", 4: "character", 5: "meta" };
+// Danbooru's category 1 is artist, and it is absent on purpose: the index does
+// not carry artist tags at all (see scripts/build_tag_index.py). An older bundle
+// still holding them falls through catLabel's guard to the generic badge.
+const CAT_NAME = { 0: "general", 3: "copyright", 4: "character", 5: "meta" };
 const CAT_I18N = {
-  zh_hans: { general: "通用", artist: "画师", copyright: "作品", character: "角色", meta: "元数据" },
-  zh_hant: { general: "通用", artist: "畫師", copyright: "作品", character: "角色", meta: "元數據" },
-  ja:      { general: "一般", artist: "絵師", copyright: "作品", character: "キャラ", meta: "メタ" },
-  en:      { general: "General", artist: "Artist", copyright: "Copyright", character: "Character", meta: "Meta" },
-  ko:      { general: "일반", artist: "작가", copyright: "작품", character: "캐릭터", meta: "메타" },
+  zh_hans: { general: "通用", copyright: "作品", character: "角色", meta: "元数据" },
+  zh_hant: { general: "通用", copyright: "作品", character: "角色", meta: "元數據" },
+  ja:      { general: "一般", copyright: "作品", character: "キャラ", meta: "メタ" },
+  en:      { general: "General", copyright: "Copyright", character: "Character", meta: "Meta" },
+  ko:      { general: "일반", copyright: "작품", character: "캐릭터", meta: "메타" },
 };
 const catLabel = (i) => {
   const slug = CAT_NAME[state.bundle.categoryOf(i)];
@@ -754,7 +757,7 @@ class Bundle {
   /**
    * Cross-language search. One native indexOf sweep collects candidates, then
    * each is scored from the match offset the sweep already found -- no row
-   * splitting, so cost scales with hits rather than with the 74k tag count.
+   * splitting, so cost scales with hits rather than with the 52k tag count.
    */
   search(query, limit = 30) {
     const q = query.trim().toLowerCase().replace(/\s+/g, "_");

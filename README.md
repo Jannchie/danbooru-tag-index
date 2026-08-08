@@ -4,8 +4,12 @@ A Google-Trends-style popularity index for Danbooru tags, and a zero-dependency
 static site that charts it.
 
 For every tag, how many posts it got per month across Danbooru's full history
-(2005-05 to now, 255 months, 74k tags), normalised three ways, searchable in five
-languages. The whole index ships as one 21.9 MB binary the browser downloads once.
+(2005-05 to now, 256 months, 52k tags), normalised three ways, searchable in five
+languages. The whole index ships as one 18.1 MB binary the browser downloads once.
+
+Artists are not in it. This indexes what gets drawn, not who draws it — a monthly
+popularity curve per named person is a different product with different stakes, so
+category 1 is dropped at the source and no stage below ever sees it.
 
 ```
 uv sync
@@ -28,16 +32,16 @@ everything downstream of the database run anywhere.
 **Stage 1** (`scripts/refresh.py`) runs on the machine that holds the database.
 It scans 11.8M posts into monthly parquet, extracts the wiki alias pool, and
 buckets wiki aliases by language. Roughly 45 minutes, resumable. It publishes
-~75 MB of artifacts:
+~40 MB of artifacts:
 
 | Artifact | Size | What |
 | --- | --- | --- |
-| `fact_tag_monthly.parquet` | 30 MB | the index — posts per tag per month |
-| `dim_tag.parquet` | 1.0 MB | tag id, name, category, lifetime post count |
+| `fact_tag_monthly.parquet` | 25 MB | the index — posts per tag per month |
+| `dim_tag.parquet` | 0.7 MB | tag id, name, category, lifetime post count |
 | `fact_total_monthly.parquet` | 4 KB | site-wide monthly baseline |
 | `fact_category_monthly.parquet` | 19 KB | per-category posts and `n_eff` |
 | `wiki_other_names.json` | 2.3 MB | alias pool, search only |
-| `{character,copyright,artist}_names.json` | 39 MB | wiki aliases bucketed by language |
+| `{character,copyright}_names.json` | 10 MB | wiki aliases bucketed by language |
 
 **Stage 2** (`.github/workflows/build.yml`) runs in CI on every push. It downloads
 those artifacts, combines them with the committed translation data, builds the
@@ -48,6 +52,14 @@ make it true.
 `refresh.py --publish` does the upload and the dispatch itself. Upload happens
 first: the workflow downloads `data-latest` the moment it starts, so dispatching
 first would race it into rebuilding the old data and reporting success.
+
+Upload replaces assets but never removes them, so an artifact stage 1 stops
+producing lingers on the release and CI keeps downloading it. Dropping artists
+left exactly one behind:
+
+```
+gh release delete-asset data-latest artist_names.json -y --repo Jannchie/danbooru-tag-index
+```
 
 ### Keeping it current
 
@@ -140,6 +152,11 @@ Notes on the data:
   concept is not split across renames.
 - Tags with `post_count < 100` are dropped (`--min-post-count`); the long tail
   carries no statistical signal.
+- Artist tags (category 1) are dropped regardless of how popular they are, in
+  `load_tag_dim` — the one gate. Because every fact table is derived from the
+  dimension it returns, their cells are never aggregated and the per-category
+  `n_eff` never carries a category nothing ships. It cost 24.6k of the former
+  76.5k tags and 5.5 MB of the bundle.
 - Deleted posts are excluded by default (`--include-deleted` to keep them).
 - Deprecated tags are kept — they were genuinely used at the time — and flagged
   in `dim_tag` so a consumer can hide them from search while still charting them.
@@ -151,7 +168,7 @@ Notes on the data:
 ## The bundle
 
 `export_index_bundle.py` packs the monthly index into `index_bundle.bin`, a single
-file the browser downloads once (21.9 MB raw, ~9.7 MB gzipped). Parquet would need
+file the browser downloads once (18.1 MB raw, ~8.2 MB gzipped). Parquet would need
 a multi-megabyte WASM reader to open client-side, so the bundle uses a purpose-built
 layout that plain JavaScript parses with a `DataView`: fixed-width tag records,
 LEB128-encoded monthly runs, and a lowercased search haystack. The header carries
@@ -209,16 +226,16 @@ scripts, so `东方` and `東方` are equivalent queries. A full query costs 1�
 
 Four sources feed this, with deliberately different roles and trust levels.
 
-**1. The wiki alias pool → search only.** 58.2k tags are reachable in some other
-language this way. It is built for recall, not equivalence: it lists whatever
+**1. The wiki alias pool → search only.** 36.4k tags carry one, and it is what
+makes them reachable in some other language. It is built for recall, not equivalence: it lists whatever
 people call a tag, including narrower and related terms. Deriving display names
 from it was tried and reverted — it claimed `school_uniform` was `制服スパッツ`
 ("school uniform + spats"). A wrong name is worse than none, so general tags stay
 under their English name while remaining searchable in any language. When a match
 comes from an alias, the suggestion list shows which alias hit.
 
-**2. `*_name_map.json` → display names** for character/copyright/artist, 46.5k of
-74k tags. Built by `build_name_map.py` from the language-bucketed alias pool plus
+**2. `*_name_map.json` → display names** for character and copyright, 24.4k of
+52k tags. Built by `build_name_map.py` from the language-bucketed alias pool plus
 the committed `*_official.json`, which an LLM produced by **selecting** the
 official name among each tag's candidates. Where only one Chinese script is
 present, the other is generated by conversion.
@@ -260,7 +277,6 @@ upstream link and `absurdres` a resolution.
 | meta | 70% | 98% | 85% |
 | copyright | 32% | 85% | 80% |
 | character | 42% | 75% | 87% |
-| artist | 28% | 29% | 33% |
 
 ### What this pipeline gets wrong, and how it is caught
 

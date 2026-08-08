@@ -12,7 +12,7 @@ from _paths import TRANSLATIONS_DIR
 LANGS = ("en", "ja", "ko", "zh_hans", "zh_hant")
 
 # 汉字是中日共享的书写系统:日文汉字名可作中文名、中文汉字名可作日文名,简繁之间可互转。
-# 用 OpenCC 把任一汉字名规范化后填充缺失的中日字段(日本画师中文直接用其日文汉字笔名)。
+# 用 OpenCC 把任一汉字名规范化后填充缺失的中日字段(日文汉字标题直接可作中文名)。
 _jp2t = opencc.OpenCC("jp2t")  # 日文新字体 → 繁体
 _t2s = opencc.OpenCC("t2s")  # 繁体 → 简体
 _s2t = opencc.OpenCC("s2t")  # 简体 → 繁体
@@ -78,7 +78,7 @@ def normalize_chinese(chosen: dict[str, str]) -> dict[str, str]:
 
 
 def beautify_tag(tag: str) -> str:
-    # Danbooru 的 tag 名是规范罗马名(snake_case),作为 artist 的 en 官方名:下划线转空格、按词首字母大写
+    # Danbooru 的 tag 名是规范罗马名(snake_case):下划线转空格、按词首字母大写
     words = tag.replace("_", " ").split(" ")
     return " ".join(w[:1].upper() + w[1:] if w else w for w in words)
 
@@ -100,15 +100,6 @@ def primary(names: list[str]) -> str | None:
     # ワンピース→ワンピ、チェンソーマン→チェ夢、ブルーアーカイブ→青アカ。
     candidates = _candidates(names)
     return candidates[0] if candidates else None
-
-
-def pick_artist(tag: str, buckets: dict[str, list[str]]) -> dict[str, str]:
-    out: dict[str, str] = {"en": beautify_tag(tag)}
-    for lang in ("ja", "ko", "zh_hans", "zh_hant"):
-        rep = shortest(buckets.get(lang, []))
-        if rep:
-            out[lang] = rep
-    return out
 
 
 def pick_copyright(tag: str, buckets: dict[str, list[str]]) -> dict[str, str]:
@@ -179,10 +170,6 @@ def main() -> None:
     parser.add_argument("--dir", type=str, default=str(TRANSLATIONS_DIR))
     args = parser.parse_args()
     base = Path(args.dir)
-
-    artist_map = build(base / "artist_names.json", pick_artist, None)
-    (base / "artist_name_map.json").write_text(json.dumps(artist_map, ensure_ascii=False), encoding="utf-8")
-    report("artist_name_map", artist_map)
 
     official_path = base / "copyright_official.json"
     official: dict[str, Any] | None = None

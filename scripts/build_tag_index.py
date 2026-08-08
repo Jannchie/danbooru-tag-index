@@ -9,6 +9,8 @@ compact Parquet fact tables that a site can serve directly:
     fact_tag_monthly.parquet / fact_total_monthly.parquet     (rollups)
     fact_category_monthly.parquet  category, month, posts, n_eff, active_tags
 
+Artist tags are not in any of them; see ARTIST_CATEGORY.
+
 The site-wide baseline exists because the index is a *share*, not a raw count:
 Danbooru's total upload volume grows year over year, so an absolute per-tag
 count mostly measures platform growth. share = tag_posts / total_posts.
@@ -38,6 +40,12 @@ from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, T
 from _paths import DANBOORU_DB_PATH, INDEX_DIR, TAG_INDEX_STAGING_PATH
 
 EPOCH = date(2005, 1, 1)
+# Danbooru's artist category. Artists are not indexed: this measures what gets
+# drawn, not who draws it, and a monthly popularity curve per named person is a
+# different product with different stakes. load_tag_dim is the only gate -- every
+# fact table below is derived from the dim it returns, so no query downstream has
+# to remember the rule.
+ARTIST_CATEGORY = 1
 # Packs (tag_id, day_ord) into one int key -- a tuple key costs ~3x the memory
 # and this dict holds millions of entries per chunk. A power of two so the
 # unpack is a shift and a mask rather than a divmod, which allocates a tuple
@@ -119,7 +127,15 @@ def load_tag_dim(connection: sqlite3.Connection, min_post_count: int) -> tuple[d
     # Deprecated tags are kept: they were genuinely used at the time and dropping
     # them would punch holes in the history. dim_tag carries the flag so the site
     # can hide them from search while still charting them.
-    rows = connection.execute("SELECT id, name, category, post_count, COALESCE(is_deprecated, 0) FROM tags WHERE post_count >= ?", (min_post_count,)).fetchall()
+    #
+    # Artist tags are dropped outright -- see ARTIST_CATEGORY. Dropping them here
+    # rather than at export keeps them out of build_tag_lookup too, so their cells
+    # are never aggregated in the first place, and out of the per-category HHI,
+    # which would otherwise still carry a category nothing ships.
+    rows = connection.execute(
+        "SELECT id, name, category, post_count, COALESCE(is_deprecated, 0) FROM tags WHERE post_count >= ? AND category != ?",
+        (min_post_count, ARTIST_CATEGORY),
+    ).fetchall()
     name_to_id = {str(name): int(tag_id) for tag_id, name, _, _, _ in rows if name}
     table = pa.table(
         {

@@ -93,7 +93,8 @@ LANGS = ("zh_hans", "zh_hant", "ja", "en", "ko")
 LANG_CODE = {lang: i for i, lang in enumerate(LANGS)}
 ALIAS_CODE = 255
 
-NAME_MAP_FILES = ("character_name_map.json", "copyright_name_map.json", "artist_name_map.json")
+# No artist map: artist tags are not indexed at all (see build_tag_index.py).
+NAME_MAP_FILES = ("character_name_map.json", "copyright_name_map.json")
 
 # Chinese for the general and meta vocabulary, translated from the slug rather
 # than selected from the alias pool. See load_general_names for why those two

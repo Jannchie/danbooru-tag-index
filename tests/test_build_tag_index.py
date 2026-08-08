@@ -40,6 +40,7 @@ def fake_db(tmp_path):
             (2, "hatsune_miku", 4, 3000, 0),
             (3, "rare_tag", 0, 10, 0),  # below the min_post_count cutoff
             (4, "old_tag", 0, 500, 1),  # deprecated but kept
+            (5, "wlop", 1, 4000, 0),  # artist: popular, but the category is not indexed
         ],
     )
     conn.executemany(
@@ -49,7 +50,7 @@ def fake_db(tmp_path):
     conn.executemany(
         "INSERT INTO posts VALUES (?,?,?,?,?,?)",
         [
-            (1, "2005-01-01T10:00:00.000-05:00", "1girl miku rare_tag", 10, 5, 0),
+            (1, "2005-01-01T10:00:00.000-05:00", "1girl miku rare_tag wlop", 10, 5, 0),
             (2, "2005-01-01T20:00:00.000-05:00", "1girl miku_hatsune", 20, 7, 0),
             (3, "2005-01-02T10:00:00.000-05:00", "1girl old_tag", 4, 1, 0),
             (4, "2005-01-02T11:00:00.000-05:00", "1girl hatsune_miku", 999, 99, 1),  # deleted, excluded
@@ -109,6 +110,24 @@ def test_rare_tag_dropped_and_deprecated_kept(fake_db, tmp_path):
     names = {name for name, _, _, _ in rows}
     assert "rare_tag" not in names
     assert "old_tag" in names
+
+
+def test_artist_tags_never_reach_the_dimension(fake_db):
+    conn = sqlite3.connect(fake_db)
+    try:
+        name_to_id, dim_table = load_tag_dim(conn, min_post_count=100)
+    finally:
+        conn.close()
+    # Dropped by category, not by popularity: wlop clears min_post_count easily.
+    assert "wlop" not in name_to_id
+    assert 1 not in dim_table.column("category").to_pylist()
+
+
+def test_artist_tags_are_not_counted_while_scanning(fake_db, tmp_path):
+    rows, _ = build(fake_db, tmp_path)
+    # Post 1 carries `wlop`, so this proves the exclusion survives the scan
+    # rather than only the dimension: no cell is aggregated for it at all.
+    assert "wlop" not in {name for name, _, _, _ in rows}
 
 
 def test_deleted_posts_excluded_by_default(fake_db, tmp_path):

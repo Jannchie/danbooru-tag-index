@@ -15,7 +15,7 @@ enforces is the whole point:
   official rendering to get wrong; any competent translator produces the same
   answer, and a cheap model is competent at it.
 
-  copyright, character and artist are proper nouns. There the same table gives
+  copyright and character are proper nouns. There the same table gives
   `kemono_friends` as 兽之朋友 and `dark_souls_(series)` as 黑暗灵魂 -- both
   plausible, both not what anyone calls them. That is exactly the failure this
   project already documented: a model that will not decline invents a name, and

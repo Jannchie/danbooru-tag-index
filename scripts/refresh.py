@@ -9,7 +9,7 @@ bundle:
     fact_total_monthly.parquet   site-wide monthly baseline
     fact_category_monthly.parquet
     wiki_other_names.json        alias pool for search (~2.3 MB)
-    {character,copyright,artist}_names.json   wiki aliases bucketed by language
+    {character,copyright}_names.json          wiki aliases bucketed by language
 
 CI combines those with the committed translation data to produce the bundle. The
 split is what keeps a 46 GB dependency out of the build: nothing downstream of
@@ -46,7 +46,6 @@ PUBLISH = (
     (INDEX_DIR, "wiki_other_names.json"),
     (TRANSLATIONS_DIR, "character_names.json"),
     (TRANSLATIONS_DIR, "copyright_names.json"),
-    (TRANSLATIONS_DIR, "artist_names.json"),
 )
 
 
