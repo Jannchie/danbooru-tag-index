@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://jannchie.github.io/danbooru-tag-index/sitemap.xml
+Sitemap: https://di.jannchie.com/sitemap.xml

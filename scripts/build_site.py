@@ -22,7 +22,7 @@ import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
-BASE = "https://jannchie.github.io/danbooru-tag-index/"
+BASE = "https://di.jannchie.com/"
 
 # slug is the sub-path; None is the root page, which stays the x-default and
 # keeps detecting the visitor's language from the browser.
@@ -64,7 +64,7 @@ LANGS = [
     },
 ]
 
-STATIC = ["og.png", "robots.txt"]
+STATIC = ["og.png", "robots.txt", "CNAME"]
 
 
 def parse_args() -> argparse.Namespace:
