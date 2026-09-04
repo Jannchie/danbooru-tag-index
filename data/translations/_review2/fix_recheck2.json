@@ -1,0 +1,29 @@
+{
+  "fixes": {
+    "real_life_insert": "真实照片插入",
+    "ryona": "凌辱",
+    "ass_peek": "屁股若隐若现",
+    "side-tie_peek": "侧系带若隐若现",
+    "fist_pump": "挥拳庆祝",
+    "hand_to_head": "手扶头部",
+    "buruma_pull": "拉布鲁玛"
+  },
+  "uncertain": {
+    "screen": "screen 含义不确定，可能指屏幕/画面，也可能指隔扇屏风，当前「屏幕」不一定对",
+    "strap_lift": "属于 _lift 族，用「掀吊带」（掀+X），与家族多数「X撩起」语序不同，是否需要统一存疑",
+    "sports_bra_lift": "属于 _lift 族，用「掀运动内衣」（掀+X），与家族多数「X撩起」语序不同，是否需要统一存疑",
+    "mask_lift": "属于 _lift 族，用「掀起面具」（掀+X），与家族多数「X撩起」语序不同，但面具非布料，用「掀」也可能是有意区分",
+    "holding_unworn_jacket": "unworn 译成「脱下的」，而 unworn_thighhighs 仍保留「未穿过的」，两种译法哪个是标准存疑",
+    "iridescent": "「玉虫色」虽小众但精确指色彩随角度变化的虹彩光泽，改成「彩虹色」可能丢失该含义、且易与彩虹条纹图案混淆",
+    "sounding": "「尿道插入」改成「尿道扩张」，前者贴近字面动作（插入探棒），后者是医学名称（扩张术），不确定哪个更贴切",
+    "mmm_threesome": "「三男三人行」里「三」重复出现，读起来略显啰嗦，是否有更简洁译法",
+    "scoop_neck": "scoop neck 指低而弯的圆领口，「大圆领」是否足够体现「低/深」的特征存疑",
+    "papercraft_(medium)": "「纸模」（纸质模型）是否比「纸艺」更准确覆盖 papercraft 这一媒介概念存疑",
+    "sideless_shirt": "「无侧衬衫」读来略生硬，不确定是否有更通顺的译法"
+  },
+  "patterns": [
+    "_lift 家族语序不统一：9 条中 6 条用「X撩起」（hoodie_lift、kimono_lift、jacket_lift、apron_lift、pelvic_curtain_lift、panty_lift），3 条用「掀X」（strap_lift、sports_bra_lift、mask_lift）",
+    "buruma 译法不统一：buruma_pull 译成「运动短裤」（意译），panties_under_buruma 保留「布鲁玛」（音译），2 条不一致",
+    "_peek 家族把「（衣物缝隙间）若隐若现地露出」误译成了「窥视/偷看」这一主动偷看的动作，混淆了被动露出和主动偷窥两个概念，涉及 ass_peek、side-tie_peek 共 2 条"
+  ]
+}

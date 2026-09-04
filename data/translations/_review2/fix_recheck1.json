@@ -1,0 +1,26 @@
+{
+  "fixes": {
+    "bursting_breasts": "爆乳",
+    "oral": "口交",
+    "tiara": "头冠",
+    "bangle": "手镯",
+    "high_collar": "高领",
+    "dated_commentary": "带日期的画师注释",
+    "torn_bodysuit": "撕裂的连体紧身衣"
+  },
+  "uncertain": {
+    "pen_(medium)": "钢笔特指自来水笔，pen_(medium) 应泛指各类笔，译成「钢笔」可能收窄了范围",
+    "selfcest": "自我恋容易被读成自恋/孤芳自赏，而非与自己的克隆体/分身发生关系，怀疑没传达出 cest 的含义",
+    "japanese_clothes": "改成「日式服装」是否比旧值「和服」更贴合该标签涵盖和服/浴衣/袴等传统日式服饰的范围，存疑",
+    "nose_piercing": "「鼻部穿孔」偏临床化，「鼻环」可能更自然，但该标签是否只指环形饰品未能确认",
+    "spoken_character": "「对话框角色」的「角色」容易读成人物角色，而该标签实指对话框里的单个文字/符号，语义不够清楚",
+    "arched_back": "「挺胸后仰」是否准确对应 arched_back 描述的拱背姿势存疑，「拱背」可能更贴切",
+    "holding_unworn_clothes": "「脱下的」隐含曾穿过后脱下，但 unworn 本意更广（也含从未穿过），可能收窄了含义，holding_unworn_hat/holding_unworn_helmet 同样处理"
+  },
+  "patterns": [
+    "commentary 族内译法三分：english/chinese/korean/partial_commentary 用「注释」，bilingual/check/spanish_commentary 用「画师注释」，dated_commentary 用「评论」，涉及约8个标签",
+    "bodysuit 族译法不统一：bodysuit=连体紧身衣，impossible_bodysuit=紧身连体衣（语序颠倒），torn_bodysuit=连体衣（丢了「紧身」），涉及3个标签",
+    "choker 族译法不统一：heart_choker=颈链，star_choker=项圈，同为 choker 用了两种词，涉及2个标签",
+    "rest/lift 族风格不统一：breast_rest/arm_rest 用「X搁置」，elbow_rest 用「肘托」，breast_lift 用「乳房上托」，动词位置与用词都不一致，涉及4个标签，非明确错误但值得留意"
+  ]
+}
