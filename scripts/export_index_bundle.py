@@ -76,6 +76,7 @@ import opencc
 from build_name_map import _HAN as HAS_CJK
 from build_name_map import _KANA as HAS_KANA
 
+from _hanzi import is_traditional
 from _paths import INDEX_DIR, TRANSLATIONS_DIR
 
 MAGIC = b"DBIX"
@@ -200,16 +201,26 @@ def normalize_traditional(name_maps: dict[str, dict[str, str | None]], converter
     """
     if converters is None or converters.to_taiwan is None:
         return 0
-    fixed = 0
+    fixed = simplified = 0
     for slots in name_maps.values():
         hans, hant = slots.get("zh_hans"), slots.get("zh_hant")
-        if not hans or not hant or converters.to_traditional(hans) != hant:
+        if not hans or not hant:
+            continue
+        # Two cases. Either the traditional value is what s2t produced from the
+        # simplified one, in which case re-derive it properly; or it is not
+        # traditional at all -- the wiki bucket handed the traditional field a
+        # simplified value, and 168 shipped names were plain simplified Chinese
+        # under a zh_hant label (鸣潮, 铃, 小红帽). Both re-derive from zh_hans.
+        derived = converters.to_traditional(hans) == hant
+        if not derived and is_traditional(hant):
             continue
         taiwan = converters.to_taiwan(hans)
         if taiwan != hant:
             slots["zh_hant"] = taiwan
             fixed += 1
-    print(f"  traditional normalised to Taiwan glyphs: {fixed:,}")
+            if not derived:
+                simplified += 1
+    print(f"  traditional normalised to Taiwan glyphs: {fixed:,} ({simplified} were simplified values)")
     return fixed
 
 

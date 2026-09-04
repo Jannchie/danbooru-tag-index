@@ -20,6 +20,7 @@ data/translations/_zh_review/in_*.json
 data/translations/_zh_review/nulls_in.json
 # 同理:分片输入可由 general_zh + 数据库重新切出,fix*.json 是买来的判断,留作审计。
 data/translations/_review_general/shard*.tsv
+data/translations/_review2/*.tsv
 site/
 logs/
 

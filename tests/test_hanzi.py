@@ -133,3 +133,53 @@ def test_traditional_repair_leaves_real_traditional_alone(text):
     from _hanzi import repair_to_traditional
 
     assert repair_to_traditional(text) == text
+
+
+@pytest.mark.parametrize(
+    ("simplified", "taiwan"),
+    [
+        ("鸣潮", "鳴潮"),
+        ("小红帽", "小紅帽"),
+        ("伊草遥香", "伊草遙香"),
+        ("水着六花", "水著六花"),
+        # s2t 转出的是通用繁体,含台湾不写的异体字。这四个是 s2tw 与 s2t 分道的地方。
+        ("嘴唇", "嘴唇"),
+        ("在床上", "在床上"),
+        ("群交", "群交"),
+        ("微启双唇", "微啟雙唇"),
+    ],
+)
+def test_taiwan_conversion_uses_taiwan_standard_glyphs(simplified, taiwan):
+    from _hanzi import to_taiwan
+
+    assert to_taiwan(simplified) == taiwan
+
+
+@pytest.mark.parametrize("text", ["托尼·斯塔克", "黑羽快斗", "井上麻里奈", "占卜", "岩石"])
+def test_taiwan_conversion_leaves_semantic_quirks_alone(text):
+    # s2tw 也做语义替换:托->託(委託)、斗->鬥(打鬥)、里->裡(裡面)、占->佔(佔据)、
+    # 岩->巖(异体)。音译人名和量器里的这些字一个都不该动。
+    from _hanzi import to_taiwan
+
+    assert to_taiwan(text) == text
+
+
+@pytest.mark.parametrize(
+    ("text", "traditional"),
+    [
+        # 真繁体,即使 s2t 想把它们改成异体字
+        ("嘴唇", True),
+        ("在床上", True),
+        ("群交", True),
+        ("托盤", True),
+        ("聖火降魔錄", True),
+        # 被塞进繁体字段的简体值
+        ("鸣潮", False),
+        ("小红帽", False),
+        ("水着六花", False),
+    ],
+)
+def test_is_traditional_separates_variant_choice_from_script(text, traditional):
+    from _hanzi import is_traditional
+
+    assert is_traditional(text) is traditional

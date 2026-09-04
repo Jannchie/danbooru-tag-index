@@ -54,6 +54,41 @@ ITERATION_MARK = "々"
 JP_ONLY = re.compile(r"[姫々]")
 
 
+_s2tw = opencc.OpenCC("s2tw")
+
+# s2tw 同样会做语义替换,只是方向相反。实测:把已发布的繁体字段里那些「其实是简体」
+# 的值喂给它,统计它改动的每一个字,人眼过一遍 —— 绝大多数是正当的繁化(遥->遙 50 次、
+# 鸣->鳴、铃->鈴、兰->蘭),下面这几个不是:
+#   里->裡  音译人名里的「里」(井上麻里奈、马里奥)是纯表音,不是「裡面」的裡
+#   占->佔  占卜的占不是佔据
+#   斗->鬥  斗形、量器的斗不是打鬥
+#   岩->巖  巖是异体字,台湾标准用岩
+#   托->託  托盘、托尼的托是承托/表音,不是委託
+# 同 PROTECTED,这不是通用修复:语料变了要重新量一遍。
+TAIWAN_QUIRKS = frozenset("里占斗岩托")
+
+
+def to_taiwan(text: str) -> str:
+    """简体→台湾正体,但不让 OpenCC 动 TAIWAN_QUIRKS 里的字。
+
+    用 s2tw 而不是 s2t:后者转出的是通用繁体,含台湾不写的异体字(衆/眾、牀/床、
+    羣/群、啓/啟、脣/唇)。也不用 s2twp —— 它多的那层用词转换会把漫画的「对话框」
+    读成 UI 的「對話方塊」、把「溢出」读成「溢位」。
+    """
+    return _protecting(_s2tw.convert, text, TAIWAN_QUIRKS)
+
+
+def is_traditional(text: str) -> bool:
+    """这串是否真的是繁体(而不是被塞进繁体字段的简体值)。
+
+    判据是「t2s 不动它,而台湾正体转换会动它」—— 前者说明串里没有可简化的繁体字,
+    后者说明有可繁化的简体字。单看 s2t 有没有变化不行:它会把「嘴唇」改成「嘴脣」、
+    「床」改成「牀」、「群交」改成「羣交」,那是异体字选择,不是简繁之分,会把大量
+    正确的繁体值判成简体。
+    """
+    return not (_t2s.convert(text) == text and to_taiwan(text) != text)
+
+
 def to_simplified(text: str) -> str:
     """繁体→简体,但不让 OpenCC 动 PROTECTED 里的字。
 
@@ -67,12 +102,12 @@ def to_simplified(text: str) -> str:
     return _protecting(_t2s.convert, text)
 
 
-def _protecting(convert, text: str) -> str:
-    """逐段跑 convert,PROTECTED 里的字原样留下。"""
+def _protecting(convert, text: str, protected: frozenset[str] = PROTECTED) -> str:
+    """逐段跑 convert,protected 里的字原样留下。"""
     out: list[str] = []
     run: list[str] = []
     for char in text:
-        if char in PROTECTED:
+        if char in protected:
             if run:
                 out.append(convert("".join(run)))
                 run = []
