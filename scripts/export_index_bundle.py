@@ -134,6 +134,7 @@ class Converters(NamedTuple):
 
     to_simplified: Callable[[str], str]
     to_traditional: Callable[[str], str]
+    to_taiwan: Callable[[str], str] | None = None
 
 
 class Sections(NamedTuple):
@@ -171,7 +172,45 @@ def to_hiragana(text: str) -> str:
 
 
 def build_converters() -> Converters:
-    return Converters(opencc.OpenCC("t2s").convert, opencc.OpenCC("s2t").convert)
+    return Converters(
+        opencc.OpenCC("t2s").convert,
+        opencc.OpenCC("s2t").convert,
+        opencc.OpenCC("s2tw").convert,
+    )
+
+
+def normalize_traditional(name_maps: dict[str, dict[str, str | None]], converters: Converters | None) -> int:
+    """Re-derive machine-converted traditional names in Taiwan's standard glyphs.
+
+    `s2t` maps to a generic traditional form that is not what Taiwan writes:
+    衆 for 眾, 牀 for 床, 羣 for 群, 啓 for 啟, 脣 for 唇. `s2tw` is the same
+    conversion against Taiwan's standard character list, so 1,884 names come out
+    right that were subtly wrong before.
+
+    Only values that `s2t` itself produced are touched. A traditional name that
+    differs from the conversion is real data -- Nintendo calls `fire_emblem_fates`
+    聖火降魔錄 in Taiwan while the mainland says 火焰纹章 -- and re-deriving it from
+    the simplified name would destroy exactly the regional titles this pipeline
+    exists to keep.
+
+    `s2twp` was measured and rejected: its extra vocabulary layer fixes 高分辨率
+    into 高解析度 but also reads ordinary words as IT jargon, turning a comic's
+    對話框 into a UI 對話方塊 and 溢出 into 溢位. Taiwanese vocabulary belongs in a
+    reviewed table, not in a converter that cannot tell the two apart.
+    """
+    if converters is None or converters.to_taiwan is None:
+        return 0
+    fixed = 0
+    for slots in name_maps.values():
+        hans, hant = slots.get("zh_hans"), slots.get("zh_hant")
+        if not hans or not hant or converters.to_traditional(hans) != hant:
+            continue
+        taiwan = converters.to_taiwan(hans)
+        if taiwan != hant:
+            slots["zh_hant"] = taiwan
+            fixed += 1
+    print(f"  traditional normalised to Taiwan glyphs: {fixed:,}")
+    return fixed
 
 
 def complete_month_range(totals: list[int]) -> tuple[int, int]:
@@ -196,7 +235,7 @@ def complete_month_range(totals: list[int]) -> tuple[int, int]:
     return first, last
 
 
-def load_name_maps(translations_dir: Path, wanted: set[str]) -> dict[str, dict[str, str]]:
+def load_name_maps(translations_dir: Path, wanted: set[str] | None) -> dict[str, dict[str, str | None]]:
     """Per-language display names, keyed by tag, restricted to tags we ship.
 
     Reports per-file and per-language coverage rather than failing on a missing
@@ -204,7 +243,7 @@ def load_name_maps(translations_dir: Path, wanted: set[str]) -> dict[str, dict[s
     shipped bundle, which is otherwise only visible by searching for a tag that
     should have a translated name and finding nothing.
     """
-    merged: dict[str, dict[str, str]] = {}
+    merged: dict[str, dict[str, str | None]] = {}
     for filename in NAME_MAP_FILES:
         path = translations_dir / filename
         if not path.exists():
@@ -213,7 +252,7 @@ def load_name_maps(translations_dir: Path, wanted: set[str]) -> dict[str, dict[s
         data = json.loads(path.read_text(encoding="utf-8"))
         used = 0
         for tag, names in data.items():
-            if tag not in wanted:
+            if wanted is not None and tag not in wanted:
                 continue
             used += 1
             slot = merged.setdefault(tag, {})
@@ -228,8 +267,8 @@ def load_name_maps(translations_dir: Path, wanted: set[str]) -> dict[str, dict[s
 
 def load_general_names(
     translations_dir: Path,
-    wanted: set[str],
-    name_maps: dict[str, dict[str, str]],
+    wanted: set[str] | None,
+    name_maps: dict[str, dict[str, str | None]],
     converters: Converters | None,
 ) -> int:
     """Chinese display names for the general and meta vocabulary.
@@ -260,7 +299,7 @@ def load_general_names(
     data = {**data, **manual}   # hand-checked wins over bulk
     added = 0
     for tag, zh in data.items():
-        if tag not in wanted or not zh:
+        if (wanted is not None and tag not in wanted) or not zh:
             continue
         slot = name_maps.setdefault(tag, {})
         if slot.get("zh_hans"):
@@ -276,8 +315,8 @@ def load_general_names(
 
 def load_zh_supplement(
     translations_dir: Path,
-    wanted: set[str],
-    name_maps: dict[str, dict[str, str]],
+    wanted: set[str] | None,
+    name_maps: dict[str, dict[str, str | None]],
     converters: Converters | None,
     filename: str = SUPPLEMENT_FILE,
 ) -> int:
@@ -305,11 +344,29 @@ def load_zh_supplement(
         return 0
     data = json.loads(path.read_text(encoding="utf-8"))
     filled = corrected = 0
-    for tag, zh in data.items():
-        if tag not in wanted or not zh:
+    for tag, entry in data.items():
+        if (wanted is not None and tag not in wanted) or not entry:
             continue
-        zh = str(zh)
         slot = name_maps.setdefault(tag, {})
+
+        # A dict addresses the scripts separately, a bare string asserts the
+        # simplified name and lets the traditional one follow. Both are needed:
+        # `fire_emblem_fates` is 火焰纹章 on the mainland and 聖火降魔錄 in Taiwan --
+        # Nintendo's own title there -- so correcting the simplified name must be
+        # able to leave the traditional one alone. Only the listed scripts move.
+        if isinstance(entry, dict):
+            for script in ("zh_hans", "zh_hant"):
+                value = entry.get(script)
+                if not value or slot.get(script) == value:
+                    continue
+                if slot.get(script):
+                    corrected += 1
+                else:
+                    filled += 1
+                slot[script] = str(value)
+            continue
+
+        zh = str(entry)
         previous = slot.get("zh_hans")
         if previous == zh:
             continue
@@ -332,8 +389,8 @@ def load_zh_supplement(
 
 def load_zh_rejections(
     translations_dir: Path,
-    wanted: set[str],
-    name_maps: dict[str, dict[str, str]],
+    wanted: set[str] | None,
+    name_maps: dict[str, dict[str, str | None]],
     converters: Converters | None,
 ) -> int:
     """Drop Chinese display names a review rejected without finding a replacement.
@@ -350,24 +407,62 @@ def load_zh_rejections(
     derive the simplified one straight back: `nugget_(project_moon)` held 自職員
     (a Japanese value misfiled as traditional), so dropping only zh_hans produced
     自职员 on the next line instead of the English fallback.
+
+    The slots are set to None rather than removed, and set even when this pipeline
+    had no name to drop. Absence and rejection mean the same thing *here* -- both
+    end in the English fallback -- but not downstream: a consumer that merges its
+    own lower-priority sources (pictoria keeps a frozen GPT-era table) reads an
+    absent key as "no opinion, fill it yourself" and would put the rejected name
+    straight back. None says the review looked and there is no name. All 16 tags
+    in the file are in pictoria's table today, carrying exactly what was rejected.
     """
     path = translations_dir / REJECTED_FILE
     if not path.exists():
         return 0
     data = json.loads(path.read_text(encoding="utf-8"))
     tags = data if isinstance(data, list) else list(data)
-    dropped = 0
+    dropped = marked = 0
     for tag in tags:
-        if tag not in wanted:
+        if wanted is not None and tag not in wanted:
             continue
-        slot = name_maps.get(tag)
-        if not slot or not slot.get("zh_hans"):
-            continue
-        slot.pop("zh_hans")
-        slot.pop("zh_hant", None)
-        dropped += 1
-    print(f"  {REJECTED_FILE}: {dropped:,} Chinese names dropped as wrong")
+        slot = name_maps.setdefault(tag, {})
+        if slot.get("zh_hans"):
+            dropped += 1
+        else:
+            marked += 1
+        slot["zh_hans"] = None
+        slot["zh_hant"] = None
+    print(f"  {REJECTED_FILE}: {dropped:,} Chinese names dropped as wrong, {marked:,} marked for downstream")
     return dropped
+
+
+def resolve_display_names(
+    translations_dir: Path,
+    wanted: set[str] | None,
+    converters: Converters | None,
+) -> dict[str, dict[str, str | None]]:
+    """The six translation layers collapsed into one name per tag per language.
+
+    The order below *is* the policy, and it lives here rather than in each
+    consumer because a second copy is a second thing to drift. `build_tag_i18n.py`
+    in the pictoria repository used to merge the raw name maps itself; it read a
+    path this project stopped writing to, said "missing, skipped", and shipped
+    unreviewed names for months without anyone noticing.
+
+    A None value means a review rejected the name and found no replacement --
+    distinct from an absent key, which means no layer had an opinion. Consumers
+    with their own fallback sources need that difference; see load_zh_rejections.
+    """
+    name_maps = load_name_maps(translations_dir, wanted)
+    load_general_names(translations_dir, wanted, name_maps, converters)
+    load_zh_supplement(translations_dir, wanted, name_maps, converters)
+    # 拒绝在补充之后:审查若给出了替代名,那条断言更强,不该再被撤掉。
+    load_zh_rejections(translations_dir, wanted, name_maps, converters)
+    # 人工修正最后:它既能填也能改,而且比"这个名字是错的"更强 —— 它说得出对的是什么。
+    load_zh_supplement(translations_dir, wanted, name_maps, converters, MANUAL_FILE)
+    # 最后:前面每一层都可能新填简体并派生繁体,规范化必须看到最终结果。
+    normalize_traditional(name_maps, converters)
+    return name_maps
 
 
 def load_other_names(path: Path, wanted: set[str]) -> dict[str, list[str]]:
@@ -464,7 +559,7 @@ def build_sections(
     rows: list[tuple],
     totals: list[int],
     categories: list[tuple[int, list[int], list[float]]],
-    name_maps: dict[str, dict[str, str]],
+    name_maps: dict[str, dict[str, str | None]],
     other_names: dict[str, list[str]],
     converters: Converters | None = None,
 ) -> tuple[Sections, dict]:
@@ -500,22 +595,24 @@ def build_sections(
         # the alias still earns its keep in search below.
         #
         # Han script conversion is a different matter -- same name, other script.
+        # Keyed on the value, not the key: load_zh_rejections leaves None behind,
+        # and `"zh_hans" in display` would hand that None to the converter.
         if converters:
-            if "zh_hans" in display and "zh_hant" not in display:
+            if display.get("zh_hans") and not display.get("zh_hant"):
                 display["zh_hant"] = converters.to_traditional(display["zh_hans"])
-            if "zh_hant" in display and "zh_hans" not in display:
+            if display.get("zh_hant") and not display.get("zh_hans"):
                 display["zh_hans"] = converters.to_simplified(display["zh_hant"])
 
-        if display:
+        if any(display.values()):
             displayable += 1
-        if display or aliases:
+        if any(display.values()) or aliases:
             translated += 1
 
         # Names block: language-tagged display names first, then the remaining
         # aliases. The list is finalised before its length is written -- writing
         # a count and then skipping an entry would desync every reader.
         lowered = name.lower()
-        entries = [(LANG_CODE[lang], display[lang]) for lang in LANGS if lang in display]
+        entries = [(LANG_CODE[lang], display[lang]) for lang in LANGS if display.get(lang)]
         seen_alias = {lowered} | {text.lower() for _, text in entries}
         for alias in aliases:
             key = alias.lower()
@@ -597,20 +694,12 @@ def main() -> None:
     epoch_year, epoch_mon = (int(part) for part in epoch_str.split("-"))
     categories = load_categories(con, index_dir, f"{epoch_str}-01", len(totals))
 
-    name_maps: dict[str, dict[str, str]] = {}
+    name_maps: dict[str, dict[str, str | None]] = {}
     other_names: dict[str, list[str]] = {}
     converters: Converters | None = None
     if not args.no_i18n:
-        name_maps = load_name_maps(Path(args.translations_dir), wanted)
         converters = build_converters()
-        # Before the supplement and the rejections: those are review decisions and
-        # must be able to override a bulk-translated name.
-        load_general_names(Path(args.translations_dir), wanted, name_maps, converters)
-        load_zh_supplement(Path(args.translations_dir), wanted, name_maps, converters)
-        # 拒绝在补充之后:审查若给出了替代名,那条断言更强,不该再被撤掉。
-        load_zh_rejections(Path(args.translations_dir), wanted, name_maps, converters)
-        # 人工修正最后:它既能填也能改,而且比"这个名字是错的"更强 —— 它说得出对的是什么。
-        load_zh_supplement(Path(args.translations_dir), wanted, name_maps, converters, MANUAL_FILE)
+        name_maps = resolve_display_names(Path(args.translations_dir), wanted, converters)
         aliases = Path(args.wiki_aliases) if args.wiki_aliases else index_dir / "wiki_other_names.json"
         other_names = load_other_names(aliases, wanted)
 

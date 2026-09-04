@@ -411,7 +411,7 @@ def test_rejection_drops_the_name_so_the_tag_falls_back_to_english(tmp_path):
     (tmp_path / REJECTED_FILE).write_text(json.dumps(["anchovy"]), encoding="utf-8")
     maps = {"anchovy": {"en": "Anchovy", "zh_hans": "队长组", "zh_hant": "隊長組"}}
     assert load_zh_rejections(tmp_path, {"anchovy"}, maps, _converters()) == 1
-    assert maps["anchovy"] == {"en": "Anchovy"}
+    assert maps["anchovy"] == {"en": "Anchovy", "zh_hans": None, "zh_hant": None}
 
 
 def test_rejection_drops_the_traditional_slot_too(tmp_path):
@@ -423,7 +423,7 @@ def test_rejection_drops_the_traditional_slot_too(tmp_path):
     (tmp_path / REJECTED_FILE).write_text(json.dumps(["nugget"]), encoding="utf-8")
     maps = {"nugget": {"en": "Nugget", "zh_hans": "脑叶公司oc", "zh_hant": "自職員"}}
     assert load_zh_rejections(tmp_path, {"nugget"}, maps, _converters()) == 1
-    assert maps["nugget"] == {"en": "Nugget"}
+    assert maps["nugget"] == {"en": "Nugget", "zh_hans": None, "zh_hant": None}
 
 
 def test_rejection_accepts_a_dict_as_well_as_a_list(tmp_path):
@@ -434,16 +434,29 @@ def test_rejection_accepts_a_dict_as_well_as_a_list(tmp_path):
         json.dumps({"anchovy": "队长组是 CP tag"}, ensure_ascii=False), encoding="utf-8")
     maps = {"anchovy": {"zh_hans": "队长组"}}
     assert load_zh_rejections(tmp_path, {"anchovy"}, maps, _converters()) == 1
-    assert "zh_hans" not in maps["anchovy"]
+    assert maps["anchovy"]["zh_hans"] is None
 
 
-def test_rejection_of_an_unshipped_or_unnamed_tag_is_a_no_op(tmp_path):
+def test_rejection_of_an_unshipped_tag_is_a_no_op(tmp_path):
     from export_index_bundle import REJECTED_FILE, load_zh_rejections
 
-    (tmp_path / REJECTED_FILE).write_text(json.dumps(["gone", "no_name"]), encoding="utf-8")
+    (tmp_path / REJECTED_FILE).write_text(json.dumps(["gone"]), encoding="utf-8")
+    maps: dict = {}
+    assert load_zh_rejections(tmp_path, {"shipped"}, maps, _converters()) == 0
+    assert maps == {}
+
+
+def test_rejection_marks_a_tag_this_pipeline_never_named(tmp_path):
+    # 本管线没给出中文名 ≠ 下游也没有。pictoria 那 20 万条表里,zh_rejected 的
+    # 16 个 tag 全都在,且值正是被否掉的那个。缺键会被下游读成「随你填」,于是
+    # 「队长组」原样填回来 —— 判词必须以 None 的形式落到产物里才传得下去。
+    from export_index_bundle import REJECTED_FILE, load_zh_rejections
+
+    (tmp_path / REJECTED_FILE).write_text(json.dumps(["no_name", "unknown"]), encoding="utf-8")
     maps = {"no_name": {"en": "No Name"}}
-    assert load_zh_rejections(tmp_path, {"no_name"}, maps, _converters()) == 0
-    assert maps["no_name"] == {"en": "No Name"}
+    assert load_zh_rejections(tmp_path, None, maps, _converters()) == 0
+    assert maps["no_name"] == {"en": "No Name", "zh_hans": None, "zh_hant": None}
+    assert maps["unknown"] == {"zh_hans": None, "zh_hant": None}
 
 
 def test_missing_rejection_file_is_not_an_error(tmp_path):

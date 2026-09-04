@@ -1,6 +1,12 @@
 """Import Chinese display names for general and meta tags from a translation table.
 
-    uv run python scripts/import_general_names.py --source <path>/tag.zh-Hans.json
+    uv run python scripts/import_general_names.py --source <path>/danbooru_tag_tree_v3.multilingual.yaml
+
+Reads the curated danbooru-tags-tree YAML (`tag.<name>` keys, `zh-CN` values), or
+any flat `{tag: name}` JSON. It used to be pointed at pictoria's `tag.zh-Hans.json`,
+which closed a loop: that table is itself built from this project's outputs, so a
+name exported here came back as a source and the layers stopped being separable.
+The tree is upstream of both.
 
 General tags shipped under their English slug in every language, which left the
 most-used half of the vocabulary untranslated for four of the five audiences.
@@ -52,15 +58,28 @@ def has_han(text: str) -> bool:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Import general/meta Chinese names.")
-    parser.add_argument("--source", type=str, required=True, help="tag.zh-Hans.json to read.")
+    parser.add_argument("--source", type=str, required=True, help="tree YAML, or a flat {tag: name} JSON.")
     parser.add_argument("--index-dir", type=str, default=str(INDEX_DIR))
     parser.add_argument("--translations-dir", type=str, default=str(TRANSLATIONS_DIR))
     return parser.parse_args()
 
 
+def load_source(path: Path) -> dict[str, str]:
+    """Flat `{tag: chinese_name}` from either the tree YAML or a plain JSON table."""
+    text = path.read_text(encoding="utf-8")
+    if path.suffix.lower() not in (".yaml", ".yml"):
+        return json.loads(text)
+    import yaml
+
+    data = yaml.safe_load(text)
+    # Keys are "tag.<name>" / "category.<path>"; a tag name may itself contain a
+    # dot, so strip the fixed prefix rather than splitting on one.
+    return {k[4:]: v["zh-CN"] for k, v in data.items() if k.startswith("tag.") and v and v.get("zh-CN")}
+
+
 def main() -> None:
     args = parse_args()
-    source = json.loads(Path(args.source).read_text(encoding="utf-8"))
+    source = load_source(Path(args.source))
 
     con = duckdb.connect()
     dim = (Path(args.index_dir) / "dim_tag.parquet").as_posix()

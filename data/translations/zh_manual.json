@@ -4,5 +4,11 @@
  "pokemon_sword_and_shield": "宝可梦剑盾",
  "seishun_buta_yarou": "青春猪头少年",
  "shameimaru_aya_(newsboy)": "铃奈庵文",
- "kemono_friends": "兽娘动物园"
+ "kemono_friends": "兽娘动物园",
+ "fire_emblem_fates": {
+  "zh_hans": "火焰纹章:if"
+ },
+ "fire_emblem_awakening": {
+  "zh_hans": "火焰纹章:觉醒"
+ }
 }

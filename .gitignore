@@ -10,6 +10,7 @@ data/index/
 data/*.duckdb*
 data/translations/*_names.json
 data/translations/*_name_map.json
+data/translations/display_names.json
 data/translations/_zh_work/
 data/translations/_char_work/
 # 审查工作目录:输入可从数据库和名称映射重新生成(每批约 1,100 行,20 批),
@@ -17,6 +18,8 @@ data/translations/_char_work/
 # 但保留原始答案才能回头查某条修正是谁给的、批次里的锚点长什么样。
 data/translations/_zh_review/in_*.json
 data/translations/_zh_review/nulls_in.json
+# 同理:分片输入可由 general_zh + 数据库重新切出,fix*.json 是买来的判断,留作审计。
+data/translations/_review_general/shard*.tsv
 site/
 logs/
 

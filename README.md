@@ -376,6 +376,49 @@ output labelled simplified Chinese. 6,663 names move. Nothing counts that — th
 bundle builds to the same tag total and quietly renders different glyphs.
 `test_opencc_produces_chinese_glyphs_not_japanese_variants` guards the pin.
 
+### Feeding it downstream
+
+The six layers above resolve into one name per tag per language, and
+`export_display_names.py` writes that answer to
+`data/translations/display_names.json` for consumers that are not the bundle.
+It keeps every tag rather than the bundle's post-count floor, because a library
+tags its own files and needs the long tail.
+
+Consumers must not merge the raw layers themselves. The order is policy, and it
+only makes sense with the reasoning attached -- the supplement beats the pool,
+a rejection beats the supplement, a hand-check beats everything. The pictoria
+image library kept its own copy of that merge, pointed at a path this project
+stopped writing when the name maps moved here, printed `missing, skipped`, and
+shipped unreviewed names for months. Nothing failed; the build just quietly
+became a different build.
+
+Rejections travel as an explicit `null`, not as an absent key. Downstream has
+its own lower-priority sources, and absence reads as "no opinion, fill it in" --
+which puts the rejected name straight back. `null` says a review looked and
+there is no name. All 16 tags in `zh_rejected.json` were in pictoria's table,
+carrying exactly what was rejected.
+
+Two projects consume it. The pictoria image library takes display names for its
+own tag tables, and danbooru-tags-tree pulls `zh-CN` back into its multilingual
+source (`pnpm sync:zh` there). That second direction used to run the other way,
+and the loop it closed had no owner: Chinese originated in the tree, reached
+pictoria, and was imported from pictoria into `general_zh.json` here -- so a
+correction made in any one of the three reached the other two only by accident.
+`censored` sat in the tree as 已遮挡 and `uncensored` as 无遮挡 long after they
+were fixed here. This project owns Chinese because it is the only one of the
+three that reviews it; the tree still owns Japanese for general tags and its own
+category nodes, and `import_general_names.py` reads the tree rather than
+pictoria so the loop stays cut.
+
+Japanese does not get the same trust. Chinese passes through an LLM selection,
+a translated supplement, a rejection list and hand-checked corrections; Japanese
+has none of those, and `build_name_map.pick_character` takes the *shortest*
+alias -- which for a character is routinely a nickname or a shipping tag. 早川アキ
+loses to アキ姫; 狛枝凪闘 and 日向創 both collapse to 狛日, the pairing of the two.
+`primary()` documents that exact failure and fixes it for copyright only. Until
+that reaches character, downstream should fill Japanese gaps rather than
+overwrite Japanese names.
+
 ## What is committed and what is not
 
 `data/index/` and the regenerable halves of `data/translations/` are gitignored:
