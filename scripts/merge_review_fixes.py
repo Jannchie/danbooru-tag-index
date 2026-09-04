@@ -33,18 +33,37 @@ import sqlite3
 from _hanzi import is_simplified
 from _paths import DANBOORU_DB_PATH, TRANSLATIONS_DIR
 
-REVIEW_DIR = TRANSLATIONS_DIR / "_review_general"
+REVIEW_DIRS = (TRANSLATIONS_DIR / "_review_general", TRANSLATIONS_DIR / "_review2")
+
+# Rounds in ascending order of authority, because they see different amounts.
+# A single-entry pass judges one row at a time; the word-family pass gets every
+# tag sharing a root laid out together, which is the only way to see that
+# `dress_tug` was translated as a tugboat while `skirt_tug` was not; the recheck
+# pass exists specifically to overturn what an earlier round decided.
+#
+# Not filename order -- that put the low-frequency pass above the family pass and
+# let it replace 射在地板上 with 精在地板上.
+ROUND_ORDER = ("fix[0-9]*.json", "fix_lowfreq*.json", "fix_family*.json", "fix_recheck*.json")
 MANUAL_FILE = TRANSLATIONS_DIR / "general_manual.json"
+BULK_FILE = TRANSLATIONS_DIR / "general_zh.json"
 ORDINARY_WORD_CATEGORIES = (0, 5)
 
 
-def load_shards() -> dict[str, dict[str, str]]:
-    """Shard name -> {tag: current translation}, as the agents were given it."""
-    shards: dict[str, dict[str, str]] = {}
-    for path in sorted(REVIEW_DIR.glob("shard*.tsv")):
-        with path.open(encoding="utf-8", newline="") as handle:
-            shards[path.stem] = {r["tag"]: r["current_zh"] for r in csv.DictReader(handle, delimiter="\t")}
-    return shards
+def load_reviewed_tags() -> set[str]:
+    """Every tag any shard actually put in front of a reviewer.
+
+    The guard this backs is against invented tag names: an agent returning a
+    plausible-looking key produces an entry that matches nothing and is never
+    noticed again. Shard layouts differ between rounds -- the first keyed on
+    `current_zh`, the recheck rounds carry `before`/`after`, the family round
+    groups by word root -- so only the tag column is read.
+    """
+    tags: set[str] = set()
+    for directory in REVIEW_DIRS:
+        for path in sorted(directory.glob("*.tsv")):
+            with path.open(encoding="utf-8", newline="") as handle:
+                tags.update(r["tag"] for r in csv.DictReader(handle, delimiter="\t") if r.get("tag"))
+    return tags
 
 
 def categories() -> dict[str, int]:
@@ -55,8 +74,16 @@ def categories() -> dict[str, int]:
         con.close()
 
 
-def collect(shards: dict[str, dict[str, str]], category: dict[str, int]) -> tuple[dict[str, str], dict[str, list[str]]]:
-    """Every accepted proposal, plus why each rejected one was dropped."""
+def collect(
+    reviewed: set[str],
+    category: dict[str, int],
+    current: dict[str, str],
+) -> tuple[dict[str, str], dict[str, list[str]]]:
+    """Every accepted proposal, plus why each rejected one was dropped.
+
+    A later round overrules an earlier one for the same tag; see ROUND_ORDER for
+    what "later" means and why it is not filename order.
+    """
     accepted: dict[str, str] = {}
     rejected: dict[str, list[str]] = {}
     seen: dict[str, str] = {}
@@ -64,25 +91,26 @@ def collect(shards: dict[str, dict[str, str]], category: dict[str, int]) -> tupl
     def reject(reason: str, detail: str) -> None:
         rejected.setdefault(reason, []).append(detail)
 
-    for path in sorted(REVIEW_DIR.glob("fix*.json")):
-        shard = shards.get(path.stem.replace("fix", "shard"), {})
-        data = json.loads(path.read_text(encoding="utf-8"))
-        for tag, raw in data.get("fixes", {}).items():
-            if tag not in shard:
-                reject("tag not in this shard", f"{path.name}: {tag}")
-            elif tag in seen:
-                reject("tag proposed by two shards", f"{tag}: {seen[tag]} / {path.name}")
-            elif category.get(tag) not in ORDINARY_WORD_CATEGORIES:
-                reject("not a general/meta tag", f"{tag} (category {category.get(tag)})")
-            elif not isinstance(raw, str) or not raw.strip():
-                reject("empty or non-string", tag)
-            elif raw.strip() == shard[tag]:
-                reject("unchanged", tag)
-            elif not is_simplified(raw.strip()):
-                reject("not canonical simplified Chinese", f"{tag}: {shard[tag]} -> {raw.strip()}")
-            else:
-                seen[tag] = path.name
-                accepted[tag] = raw.strip()
+    for pattern in ROUND_ORDER:
+        for path in sorted(q for directory in REVIEW_DIRS for q in directory.glob(pattern)):
+            data = json.loads(path.read_text(encoding="utf-8"))
+            for tag, raw in data.get("fixes", {}).items():
+                value = raw.strip() if isinstance(raw, str) else ""
+                if tag not in reviewed:
+                    reject("tag was never in a shard", f"{path.name}: {tag}")
+                elif category.get(tag) not in ORDINARY_WORD_CATEGORIES:
+                    reject("not a general/meta tag", f"{tag} (category {category.get(tag)})")
+                elif not value:
+                    reject("empty or non-string", tag)
+                elif value == current.get(tag):
+                    reject("unchanged", tag)
+                elif not is_simplified(value):
+                    reject("not canonical simplified Chinese", f"{tag}: {current.get(tag)} -> {value}")
+                else:
+                    if tag in seen and accepted[tag] != value:
+                        reject("superseded by a later round", f"{tag}: {accepted[tag]} ({seen[tag]}) -> {value} ({path.name})")
+                    seen[tag] = path.name
+                    accepted[tag] = value
     return accepted, rejected
 
 
@@ -91,14 +119,15 @@ def main() -> None:
     parser.add_argument("--apply", action="store_true", help="write general_manual.json (default: report only)")
     args = parser.parse_args()
 
-    shards = load_shards()
-    if not shards:
-        message = f"no shards in {REVIEW_DIR}"
+    reviewed = load_reviewed_tags()
+    if not reviewed:
+        message = f"no shards under {', '.join(str(d) for d in REVIEW_DIRS)}"
         raise SystemExit(message)
     manual = json.loads(MANUAL_FILE.read_text(encoding="utf-8"))
-    accepted, rejected = collect(shards, categories())
+    bulk = json.loads(BULK_FILE.read_text(encoding="utf-8"))
+    accepted, rejected = collect(reviewed, categories(), {**bulk, **manual})
 
-    print(f"shards: {len(shards)}, proposals accepted: {len(accepted):,}")
+    print(f"tags reviewed: {len(reviewed):,}, proposals accepted: {len(accepted):,}")
     for reason, items in sorted(rejected.items(), key=lambda kv: -len(kv[1])):
         print(f"  rejected -- {reason}: {len(items)}")
         for item in items[:6]:
