@@ -81,7 +81,8 @@ LIFT_EXCEPTIONS = frozenset({"leg_lift", "breast_lift", "ass_lift", "pectoral_li
 
 FAMILY_FORMATS = (
     (lambda t: t.startswith("bad_") and t.endswith("_id"), lambda v: v.startswith("失效"), "bad_*_id 用「失效X」"),
-    (lambda t: t.endswith("_pull"), lambda v: v.startswith("拉"), "*_pull 用「拉X」"),
+    # cord_pull 是例外:`cord` 本身叫「拉绳」,照规则拼出来是「拉拉绳」,读不通。
+    (lambda t: t.endswith("_pull") and t != "cord_pull", lambda v: v.startswith("拉"), "*_pull 用「拉X」"),
     (lambda t: t.endswith("_tug"), lambda v: v.startswith("拉扯"), "*_tug 用「拉扯X」"),
     # 例外见 LIFT_EXCEPTIONS。原先没有这道例外,于是把 6 个正确的名字报成违规 ——
     # 而它当时是死代码,没人看见。
@@ -98,12 +99,40 @@ FAMILY_FORMATS = (
 # 把那个后缀一并抄了回来 —— 而人工层跑在消歧之前,原样收下就会接第二次,得到
 # 「白子（泳装）（泳装）」。带括号限定词的标签只收基础名,后缀交回给消歧层。
 # 作品名不走这条:那边没有消歧层,而「（系列）」「（动画）」本来就是名字的一部分。
-BRACKETED = re.compile(r"\([^()]+\)")
-TRAILING_QUALIFIER = re.compile(r"（[^（）]+）$")
+BRACKETED = re.compile(r"\(([^()]+)\)")
+TRAILING_QUALIFIER = re.compile(r"（([^（）]+)）$")
+_VARIANTS = json.loads((TRANSLATIONS_DIR / "character_variants.json").read_text(encoding="utf-8"))
+_COPYRIGHT_ZH = json.loads((TRANSLATIONS_DIR / "copyright_name_map.json").read_text(encoding="utf-8"))
+
+
+def pipeline_labels(tag: str) -> set[str]:
+    """消歧层给这个标签接得出来的括注,穷举一遍。
+
+    读的是消歧层自己读的那两张表,所以它和产出永远一致 —— 换句话说,这里判定
+    「能重现」的,就是剥掉之后一定会被原样接回来的。
+    """
+    labels = set()
+    for qualifier in BRACKETED.findall(tag):
+        for table in (_VARIANTS, _COPYRIGHT_ZH):
+            if qualifier in table:
+                labels.add(table[qualifier] if isinstance(table[qualifier], str) else table[qualifier].get("zh_hans"))
+    return {label for label in labels if label}
 
 
 def strip_qualifier(tag: str, value: str) -> str:
-    return TRAILING_QUALIFIER.sub("", value) if BRACKETED.search(tag) else value
+    """剥掉审查抄回来的括注,只剥流水线自己会接回去的那一份。
+
+    审查看到的是消歧接好之后的值,所以提案常把后缀一并抄回来;原样收下就会接第二次,
+    得到「白子（泳装）（泳装）」。但不能见括号就剥:`yorck_(azur_lane)` 和
+    `york_(azur_lane)` 都叫约克,审查按阵营分成了「约克（铁血）」和「约克（皇家）」,
+    而消歧接得出来的只有「碧蓝航线」—— 剥掉那两个后缀,两条又并到一起了,
+    审查白做。所以只剥能重现的。
+    """
+    match = TRAILING_QUALIFIER.search(value)
+    if not match:
+        return value
+    labels = {part for part in match.group(1).split("·")}
+    return TRAILING_QUALIFIER.sub("", value) if labels <= pipeline_labels(tag) else value
 
 
 def format_warnings(accepted: dict[str, str]) -> list[str]:
