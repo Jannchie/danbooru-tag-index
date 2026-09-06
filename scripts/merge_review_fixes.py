@@ -28,12 +28,13 @@ the sharding, not the review, is broken.
 import argparse
 import csv
 import json
+import re
 import sqlite3
 
 from _hanzi import is_simplified
 from _paths import DANBOORU_DB_PATH, TRANSLATIONS_DIR
 
-REVIEW_DIRS = tuple(TRANSLATIONS_DIR / name for name in ("_review_general", "_review2", "_review3", "_review4", "_review_char"))
+REVIEW_DIRS = tuple(TRANSLATIONS_DIR / name for name in ("_review_general", "_review2", "_review3", "_review4", "_review_char", "_review5"))
 
 # Two vocabularies, two destinations. Ordinary words and proper nouns fail
 # differently -- a mistranslated adjective reads oddly, a mistranslated character
@@ -53,7 +54,15 @@ REVIEW_DIRS = tuple(TRANSLATIONS_DIR / name for name in ("_review_general", "_re
 # and let it replace 射在地板上 with 精在地板上.
 TARGETS = {
     "general": (TRANSLATIONS_DIR / "general_manual.json", TRANSLATIONS_DIR / "general_zh.json", (0, 5), ("fix[0-9]*.json", "fix_tail*.json", "fix_lowfreq*.json", "fix_deep*.json", "fix_family*.json", "fix_recheck*.json")),
-    "character": (TRANSLATIONS_DIR / "character_manual.json", None, (4,), ("fix_char*.json",)),
+    # Two rounds, unpadded then padded: the second covers 4,800 names against the
+    # first's 753, and where they overlap the wider view is the later word. Glob
+    # order alone would not say that -- `_review5` sorts before `_review_char`.
+    "character": (TRANSLATIONS_DIR / "character_manual.json", None, (4,), ("fix_char[0-9].json", "fix_char[0-9][0-9].json")),
+    # Franchise titles. No bulk file and no earlier round: this vocabulary had
+    # never been reviewed at all, which is why 4,744 names shipped with a mix of
+    # official titles, literal translations, and one entry standing in for its
+    # whole series (`atelier_(series)` as 莱莎的炼金工房).
+    "copyright": (TRANSLATIONS_DIR / "copyright_manual.json", None, (3,), ("fix_copy*.json",)),
 }
 
 
@@ -72,6 +81,18 @@ FAMILY_FORMATS = (
     (lambda t: t.startswith("unworn_"), lambda v: v.startswith(("未穿", "未戴")), "unworn_* 用「未穿/未戴的X」"),
     (lambda t: t.endswith("_censor") and t != "bar_censor", lambda v: "打码" in v or "遮挡" in v or v == "圣光", "*_censor 用「X打码」"),
 )
+
+
+# 消歧层自己会给撞名的角色接上「（限定词）」。审查看到的是接好之后的值,于是提案往往
+# 把那个后缀一并抄了回来 —— 而人工层跑在消歧之前,原样收下就会接第二次,得到
+# 「白子（泳装）（泳装）」。带括号限定词的标签只收基础名,后缀交回给消歧层。
+# 作品名不走这条:那边没有消歧层,而「（系列）」「（动画）」本来就是名字的一部分。
+BRACKETED = re.compile(r"\([^()]+\)")
+TRAILING_QUALIFIER = re.compile(r"（[^（）]+）$")
+
+
+def strip_qualifier(tag: str, value: str) -> str:
+    return TRAILING_QUALIFIER.sub("", value) if BRACKETED.search(tag) else value
 
 
 def format_warnings(accepted: dict[str, str]) -> list[str]:
@@ -114,6 +135,7 @@ def collect(
     current: dict[str, str],
     wanted_categories: tuple[int, ...],
     rounds: tuple[str, ...],
+    strip: bool = False,
 ) -> tuple[dict[str, str], dict[str, list[str]]]:
     """Every accepted proposal, plus why each rejected one was dropped.
 
@@ -132,6 +154,8 @@ def collect(
             data = json.loads(path.read_text(encoding="utf-8"))
             for tag, raw in data.get("fixes", {}).items():
                 value = raw.strip() if isinstance(raw, str) else ""
+                if value and strip:
+                    value = strip_qualifier(tag, value)
                 if tag not in reviewed:
                     reject("tag was never in a shard", f"{path.name}: {tag}")
                 elif category.get(tag) not in wanted_categories:
@@ -163,13 +187,13 @@ def main() -> None:
         raise SystemExit(message)
     manual = json.loads(manual_file.read_text(encoding="utf-8")) if manual_file.exists() else {}
     bulk = json.loads(bulk_file.read_text(encoding="utf-8")) if bulk_file else {}
-    if args.target == "character":
-        # No bulk file for names -- the value being reviewed is whatever the
-        # resolved export currently ships, which is where the alias-pool
+    if bulk_file is None:
+        # No bulk file for proper nouns -- the value being reviewed is whatever
+        # the resolved export currently ships, which is where the alias-pool
         # heuristic's answer ends up.
         resolved = json.loads((TRANSLATIONS_DIR / "display_names.json").read_text(encoding="utf-8"))
         bulk = {t: v["zh_hans"] for t, v in resolved.items() if v.get("zh_hans")}
-    accepted, rejected = collect(reviewed, categories(), {**bulk, **manual}, wanted, rounds)
+    accepted, rejected = collect(reviewed, categories(), {**bulk, **manual}, wanted, rounds, strip=args.target == "character")
 
     print(f"tags reviewed: {len(reviewed):,}, proposals accepted: {len(accepted):,}")
     for reason, items in sorted(rejected.items(), key=lambda kv: -len(kv[1])):
@@ -186,6 +210,14 @@ def main() -> None:
             print(f"      {tag}: {was} (not {proposed})")
         for tag in overlap:
             del accepted[tag]
+
+    # 报告,不自动改 —— 见 FAMILY_FORMATS。这个函数定义好之后有一阵子没人调用,
+    # 于是这道检查存在、测试也在跑,却对谁都不说话。
+    warnings = format_warnings(accepted)
+    if warnings:
+        print(f"  与既有族格式不符 {len(warnings)} 条(仅报告,未拦截):")
+        for line in warnings[:12]:
+            print(f"      {line}")
 
     if not args.apply:
         print(f"\n--apply not given; {manual_file.name} untouched")

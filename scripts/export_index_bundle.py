@@ -76,7 +76,7 @@ import opencc
 from build_name_map import _HAN as HAS_CJK
 from build_name_map import _KANA as HAS_KANA
 
-from _hanzi import is_traditional
+from _hanzi import is_simplified, is_traditional, repair_to_simplified, repair_to_traditional
 from _paths import INDEX_DIR, TRANSLATIONS_DIR
 
 MAGIC = b"DBIX"
@@ -123,6 +123,12 @@ MANUAL_FILE = "zh_manual.json"
 # and folding hundreds of reviewed names into it would blur what it is. Applied
 # before it, so a hand decision still wins.
 CHARACTER_MANUAL_FILE = "character_manual.json"
+
+# Franchise titles a review corrected. Separate from the character file for the
+# same reason that one is separate from zh_manual: the two vocabularies fail
+# differently. A wrong character name is one tag; a wrong franchise title is the
+# tag *and* the bracketed qualifier every character of that franchise carries.
+COPYRIGHT_MANUAL_FILE = "copyright_manual.json"
 
 # Tags whose pool-derived Chinese name a review found wrong without finding a
 # replacement. Separate from the supplement because it is the opposite assertion:
@@ -191,6 +197,107 @@ def build_converters() -> Converters:
         opencc.OpenCC("s2t").convert,
         opencc.OpenCC("s2tw").convert,
     )
+
+
+# 汉字之间的 ASCII 标点。别名池里的中文名是各处抄来的,标点跟着来源走:
+# 「崩坏:星穹铁道」半角冒号,「命运/冠位指定」全角,同一批数据两种写法。
+HAN = "一-鿿〇"
+FULLWIDTH = {":": "：", "!": "！", "?": "？", ",": "，", ";": "；"}
+# 成串一起转,否则「这样的我有罪!?」只转得动前一半。句末也转 —— 结尾的「!」
+# 前面是汉字,那它就是中文叹号,`BanG Dream!少女乐团派对!` 里两个「!」性质不同。
+PUNCT_RUN = re.compile(f"(?<=[{HAN}])([:!?,;]+)(?=[{HAN}]|$)")
+# 括号里含汉字且不含拉丁字母才转:「(系列)」「(崩坏：星穹铁道)」要转,
+# 而残留的「(anime)」不该被悄悄转成全角 —— 那是没翻译,不是排版问题。
+PAREN = re.compile(f"(?<=[{HAN}])\(([^()]*[{HAN}][^()]*)\)")
+# 中文正文里不留空格再接括注 —— 那个空格是从英文排版抄来的,也正是这条规则的抓手:
+# 「初音未来 (cosplay)」和「初音未来（cosplay）」是同一族标签的两种写法,254 个
+# cosplay 标签里 115 个是前者。有了空格就不必要求括注内容是汉字,所以 (cosplay)、
+# (meme)、(ff14) 这些没翻译的限定词也一起规整,而不带空格的「罗托(DQ3)」不受影响。
+SPACED_PAREN = re.compile(f"(?<=[{HAN}]) \(([^()]+)\)$")
+# 片假名中点。中文用的是 U+00B7「·」,日文是 U+30FB「・」,渲染出来几乎一样,
+# 所以「干将・莫邪」这种混进来不会有人发现。
+KATAKANA_MIDDLE_DOT = "・"
+
+
+COSPLAY_SUFFIX = "_(cosplay)"
+
+
+def inherit_cosplay_names(name_maps: dict[str, dict[str, str | None]]) -> int:
+    """`X_(cosplay)` 的名字跟着 X 走。
+
+    这类标签的意思是「有人 cos 成 X」,所以名字只能是 X 的名字 —— 它不是一个独立的
+    词条,没有自己的译法可言。但它在 Danbooru 里属于 general 分类,于是走的是另一条
+    数据链:角色名被审查改对了,cosplay 那份副本留在原地。实测 254 个 cosplay 标签
+    里有 135 个和本体对不上 —— 镜音铃写成镜音凛、碧姬公主写成桃子公主、兔田佩克拉
+    写成乌萨达·佩科拉,都是本体早就修过的名字。
+
+    放在消歧之后:本体名要先拿到自己的括号后缀,继承的才是最终形态。
+    """
+    inherited = 0
+    for tag, names in name_maps.items():
+        if not tag.endswith(COSPLAY_SUFFIX):
+            continue
+        base = name_maps.get(tag[: -len(COSPLAY_SUFFIX)])
+        if not base:
+            continue
+        for lang in ("zh_hans", "zh_hant"):
+            want = f"{base[lang]}（cosplay）" if base.get(lang) else None
+            if want and names.get(lang) != want:
+                names[lang] = want
+                inherited += 1
+    return inherited
+
+
+def normalize_simplified(name_maps: dict[str, dict[str, str | None]]) -> int:
+    """把过不了简体闸门的名字交给 _hanzi 的修复函数。
+
+    只动闸门已经判定不合格的值,而且修完仍不合格就原样退回 —— 这两道限制之下,这个
+    变换在闸门的定义里是只增不减的。风险全部压在那个定义上,也就是 PROTECTED:
+    OpenCC 的转换不只做字形映射,还做语义和短语替换,而它替换掉的有些字本来就是对的
+    (暴露->曝露、樫->㭴、魟->𫚉)。那张表是按本项目已发布的名字实测出来的,语料变了
+    要重新量 —— 量的办法见 _hanzi 的模块注释。
+
+    简繁一起修。只修简体的话,繁体那边会保持旧字形,而 normalize_traditional 不会来
+    收拾:它看到繁体串里有繁体字就认定是人工写的,于是「ICG姐贵」配「ICG姉貴」一直
+    并存下去。
+    """
+    fixed = 0
+    for names in name_maps.values():
+        for lang, guard, repair in (("zh_hans", is_simplified, repair_to_simplified), ("zh_hant", is_traditional, repair_to_traditional)):
+            value = names.get(lang)
+            if not value or guard(value):
+                continue
+            out = repair(value)
+            if out != value:
+                names[lang] = out
+                fixed += 1
+    return fixed
+
+
+def normalize_punctuation(name_maps: dict[str, dict[str, str | None]]) -> int:
+    """半角标点转全角,只在两侧都是汉字时。
+
+    条件苛刻是有原因的:「Re:从零开始的异世界生活」的冒号属于拉丁词 Re,
+    「火焰纹章:if」的冒号后面跟着 if,两者都该保持半角。要求前后皆汉字,
+    这两种就自己排除掉了,剩下的才是中文正文里的标点。
+
+    只管中日韩三种字形里的中文两种。日文名同样命中汉字类,但日文排版另有
+    规矩(冒号常用半角),不该按中文规范去改。
+    """
+    fixed = 0
+    for names in name_maps.values():
+        for lang in ("zh_hans", "zh_hant"):
+            value = names.get(lang)
+            if not value:
+                continue
+            out = PUNCT_RUN.sub(lambda m: "".join(FULLWIDTH[c] for c in m.group(1)), value)
+            out = PAREN.sub(lambda m: "（" + m.group(1) + "）", out)
+            out = SPACED_PAREN.sub(lambda m: "（" + m.group(1) + "）", out)
+            out = out.replace(KATAKANA_MIDDLE_DOT, "·")
+            if out != value:
+                names[lang] = out
+                fixed += 1
+    return fixed
 
 
 def normalize_traditional(name_maps: dict[str, dict[str, str | None]], converters: Converters | None) -> int:
@@ -465,6 +572,7 @@ def disambiguate_variants(
     translations_dir: Path,
     character_tags: set[str],
     copyright_names: dict[str, str],
+    converters: Converters | None = None,
     lang: str = "zh_hans",
     also: tuple[str, ...] = ("zh_hant",),
 ) -> int:
@@ -491,6 +599,7 @@ def disambiguate_variants(
     """
     path = translations_dir / VARIANT_FILE
     variants = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    to_taiwan = converters.to_taiwan if converters else None
 
     groups: dict[str, list[str]] = {}
     for tag in character_tags:
@@ -546,11 +655,16 @@ def disambiguate_variants(
             suffix = f"（{'·'.join(labels)}）"
             slot = name_maps[tag]
             slot[lang] = f"{slot[lang]}{suffix}"
-            # The other scripts of the same language follow: they are the same
-            # name in different glyphs and would otherwise disagree with it.
+            # The other scripts of the same language follow -- in *their* glyphs.
+            # The labels come from the simplified copyright names and variant
+            # table, so appending them raw produced 開拓者（崩坏：星穹铁道）, half
+            # the name in each script. normalize_traditional does not catch that:
+            # it judges the whole string, and a string containing 開 reads as one
+            # someone wrote by hand, so it is left exactly as it is.
             for other in also:
                 if slot.get(other):
-                    slot[other] = f"{slot[other]}{suffix}"
+                    converted = to_taiwan(suffix) if other == "zh_hant" and to_taiwan else suffix
+                    slot[other] = f"{slot[other]}{converted}"
             renamed += 1
 
     print(f"  {VARIANT_FILE}: {renamed:,} colliding {lang} character names given their qualifier")
@@ -584,6 +698,8 @@ def resolve_display_names(
     load_zh_rejections(translations_dir, wanted, name_maps, converters)
     # 人工修正最后:它既能填也能改,而且比"这个名字是错的"更强 —— 它说得出对的是什么。
     # 角色名审查在人工层之前:它推翻的是别名池的启发式选择,而人工层推翻的是它。
+    # 作品名在角色名之前:消歧会把作品名接到角色名后面,那一步读的是这里的结果。
+    load_zh_supplement(translations_dir, wanted, name_maps, converters, COPYRIGHT_MANUAL_FILE)
     load_zh_supplement(translations_dir, wanted, name_maps, converters, CHARACTER_MANUAL_FILE)
     load_zh_supplement(translations_dir, wanted, name_maps, converters, MANUAL_FILE)
     # 消歧在规范化之前:它会往名字后面接括号,那部分也要跟着转成台湾字形。
@@ -600,7 +716,11 @@ def resolve_display_names(
         name_maps,
         translations_dir,
         characters,
-        {tag: names["zh_hans"] for tag, names in copyrights.items() if names.get("zh_hans")},
+        # 标签取自 name_maps 而非 copyrights:那个文件是原始名字映射,
+        # copyright_manual 的修正没有回写进去。从这里读,作品名一改,
+        # 该作品每个角色的括号后缀跟着改;从文件读,后缀会停在旧名字上。
+        {tag: name_maps[tag]["zh_hans"] for tag in copyrights if name_maps.get(tag, {}).get("zh_hans")},
+        converters,
     )
     # Japanese collides far harder than Chinese -- 3,803 names against 145 --
     # because build_name_map picks it with `shortest` and nothing reviews it, so
@@ -611,10 +731,16 @@ def resolve_display_names(
         name_maps,
         translations_dir,
         characters,
-        {tag: names["ja"] for tag, names in copyrights.items() if names.get("ja")},
+        {tag: name_maps[tag]["ja"] for tag in copyrights if name_maps.get(tag, {}).get("ja")},
         lang="ja",
         also=(),
     )
+    # 标点在繁体规范化之前:两种字形都要改,否则简体一改,繁体就不再
+    # 等于简体的机器转换结果,normalize_traditional 会判定它是人工写的而放过。
+    print(f"  cosplay names inherited from their base character: {inherit_cosplay_names(name_maps):,}")
+    # 字形在标点之前,两者都在繁体规范化之前:后面那一步要看到最终的简体。
+    print(f"  glyphs repaired past the script guard: {normalize_simplified(name_maps):,}")
+    normalize_punctuation(name_maps)
     # 最后:前面每一层都可能新填简体并派生繁体,规范化必须看到最终结果。
     normalize_traditional(name_maps, converters)
     return name_maps
