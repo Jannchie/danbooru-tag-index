@@ -141,6 +141,11 @@ REJECTED_FILE = "zh_rejected.json"
 # Genshin faction, (1st_costume) a VTuber's debut outfit.
 VARIANT_FILE = "character_variants.json"
 
+# 同一张表的日文版。日文那一遍以前照用中文表,于是 1,457 个日文名带上了简体括注 ——
+# 「加賀（舰队Collection）」。这里只列日本人实际在用的那些写法(艦これ、第一再臨、
+# 水着),列不到的仍旧留英文:kancolle 日本人读得懂,舰队 不是日文。
+VARIANT_FILE_JA = "character_variants.ja.json"
+
 BRACKETED = re.compile(r"\(([^()]+)\)")
 KATAKANA = re.compile(r"[ァ-ヶ]")
 
@@ -575,6 +580,7 @@ def disambiguate_variants(
     converters: Converters | None = None,
     lang: str = "zh_hans",
     also: tuple[str, ...] = ("zh_hant",),
+    variant_file: str = VARIANT_FILE,
 ) -> int:
     """Put the bracketed qualifier back on names that need it to stay distinct.
 
@@ -597,7 +603,7 @@ def disambiguate_variants(
     neither is left in English rather than guessed at: an unreadable qualifier
     still separates two tags, a wrong one misinforms.
     """
-    path = translations_dir / VARIANT_FILE
+    path = translations_dir / variant_file
     variants = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     to_taiwan = converters.to_taiwan if converters else None
 
@@ -667,7 +673,7 @@ def disambiguate_variants(
                     slot[other] = f"{slot[other]}{converted}"
             renamed += 1
 
-    print(f"  {VARIANT_FILE}: {renamed:,} colliding {lang} character names given their qualifier")
+    print(f"  {variant_file}: {renamed:,} colliding {lang} character names given their qualifier")
     if unknown:
         top = ", ".join(sorted(unknown)[:8])
         print(f"    {len(unknown)} qualifiers had no translation and kept the English ({untranslated} uses): {top}")
@@ -734,6 +740,7 @@ def resolve_display_names(
         {tag: name_maps[tag]["ja"] for tag in copyrights if name_maps.get(tag, {}).get("ja")},
         lang="ja",
         also=(),
+        variant_file=VARIANT_FILE_JA,
     )
     # 标点在繁体规范化之前:两种字形都要改,否则简体一改,繁体就不再
     # 等于简体的机器转换结果,normalize_traditional 会判定它是人工写的而放过。
