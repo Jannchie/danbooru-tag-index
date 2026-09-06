@@ -36,7 +36,7 @@ DELIMITER = chr(9)
 from _hanzi import is_simplified
 from _paths import DANBOORU_DB_PATH, TRANSLATIONS_DIR
 
-REVIEW_DIRS = tuple(TRANSLATIONS_DIR / name for name in ("_review_general", "_review2", "_review3", "_review4", "_review_char", "_review5", "_review6"))
+REVIEW_DIRS = tuple(TRANSLATIONS_DIR / name for name in ("_review_general", "_review2", "_review3", "_review4", "_review_char", "_review5", "_review6", "_review7"))
 
 # Two vocabularies, two destinations. Ordinary words and proper nouns fail
 # differently -- a mistranslated adjective reads oddly, a mistranslated character
@@ -68,6 +68,11 @@ TARGETS = {
     # 不是名字,是名字的零件:角色标签括号里的限定词,消歧时接到名字后面。没有分类可查
     # (限定词不是标签),所以那道闸门关掉 —— 分片成员检查还在,而它才是拦编造键的那道。
     "variant": (TRANSLATIONS_DIR / "character_variants.json", None, None, ("fix_q*.json",)),
+    # 补空缺,不是改错误。前面那些目标面对的是「这个名字翻错了」,这个面对的是
+    # 「这个标签根本没有中文名」—— ≥300 投稿的标签里有 6,321 个是这样,多数不是
+    # 漏翻,而是从来没进过任何一轮。写进 zh_supplement 是因为它们是*翻译*出来的,
+    # 不是从别名池里*挑*出来的,两种来源的可信度不同,也该分开回滚。
+    "supplement": (TRANSLATIONS_DIR / "zh_supplement.json", None, (0, 3, 4, 5), ("fix_cp[0-9].json", "fix_gm[0-9].json", "fix_ch[0-9].json")),
 }
 
 
@@ -181,6 +186,7 @@ def collect(
     wanted_categories: tuple[int, ...] | None,
     rounds: tuple[str, ...],
     strip: bool = False,
+    gap_only: bool = False,
 ) -> tuple[dict[str, str], dict[str, list[str]]]:
     """Every accepted proposal, plus why each rejected one was dropped.
 
@@ -207,6 +213,12 @@ def collect(
                     reject("wrong category for this target", f"{tag} (category {category.get(tag)})")
                 elif not value:
                     reject("empty or non-string", tag)
+                elif gap_only and current.get(tag):
+                    # 这一轮只填空缺。zh_supplement 是会*覆盖*名字映射的(见
+                    # load_zh_supplement 的注释),所以一条针对已有名字的提案会悄悄
+                    # 盖掉前几轮审查过的结果 —— 而分片是按「当前没有中文名」挑的,
+                    # 有名字就说明这条不在任务范围内。
+                    reject("already has a name; this round only fills gaps", f"{tag}: {current[tag]} -> {value}")
                 elif value == (strip_qualifier(tag, current[tag]) if strip and current.get(tag) else current.get(tag)):
                     # 两边都剥掉括号后缀再比。后缀是消歧层加的,审查看到的是加完的值,
                     # 于是「把后缀去掉」会被当成一处改动 —— 一个 shard 里就有上百条,
@@ -244,7 +256,15 @@ def main() -> None:
         # heuristic's answer ends up.
         resolved = json.loads((TRANSLATIONS_DIR / "display_names.json").read_text(encoding="utf-8"))
         bulk = {t: v["zh_hans"] for t, v in resolved.items() if v.get("zh_hans")}
-    accepted, rejected = collect(reviewed, categories(), {**bulk, **manual}, wanted, rounds, strip=args.target == "character")
+    accepted, rejected = collect(
+        reviewed,
+        categories(),
+        {**bulk, **manual},
+        wanted,
+        rounds,
+        strip=args.target == "character",
+        gap_only=args.target == "supplement",
+    )
 
     print(f"tags reviewed: {len(reviewed):,}, proposals accepted: {len(accepted):,}")
     for reason, items in sorted(rejected.items(), key=lambda kv: -len(kv[1])):
