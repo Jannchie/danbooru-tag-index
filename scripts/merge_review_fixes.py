@@ -59,12 +59,12 @@ TARGETS = {
     # Two rounds, unpadded then padded: the second covers 4,800 names against the
     # first's 753, and where they overlap the wider view is the later word. Glob
     # order alone would not say that -- `_review5` sorts before `_review_char`.
-    "character": (TRANSLATIONS_DIR / "character_manual.json", None, (4,), ("fix_char[0-9].json", "fix_char[0-9][0-9].json")),
+    "character": (TRANSLATIONS_DIR / "character_manual.json", None, (4,), ("fix_char[0-9].json", "fix_char[0-9][0-9].json", "fix_cdup*.json")),
     # Franchise titles. No bulk file and no earlier round: this vocabulary had
     # never been reviewed at all, which is why 4,744 names shipped with a mix of
     # official titles, literal translations, and one entry standing in for its
     # whole series (`atelier_(series)` as 莱莎的炼金工房).
-    "copyright": (TRANSLATIONS_DIR / "copyright_manual.json", None, (3,), ("fix_copy*.json",)),
+    "copyright": (TRANSLATIONS_DIR / "copyright_manual.json", None, (3,), ("fix_copy*.json", "fix_pdup*.json")),
     # 不是名字,是名字的零件:角色标签括号里的限定词,消歧时接到名字后面。没有分类可查
     # (限定词不是标签),所以那道闸门关掉 —— 分片成员检查还在,而它才是拦编造键的那道。
     "variant": (TRANSLATIONS_DIR / "character_variants.json", None, None, ("fix_q*.json",)),
