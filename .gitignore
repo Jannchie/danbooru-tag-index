@@ -35,3 +35,8 @@ logs/
 data/translations/_review3/*.tsv
 data/translations/_review4/*.tsv
 data/translations/_review_char/*.tsv
+
+# Review shards: regenerated from display_names.json plus the tag database, and
+# large. Only the fix_*.json a round produced is tracked -- that is the decision,
+# the shard is the worksheet.
+data/translations/_review*/*.tsv
