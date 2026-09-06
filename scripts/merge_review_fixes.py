@@ -234,15 +234,65 @@ def collect(
     return accepted, rejected
 
 
+def merge_rejections(reviewed: set[str], category: dict[str, int], apply: bool) -> None:
+    """把审查的「不」写进 zh_rejected.json。
+
+    补空缺那一轮留下的空,只在本项目里是空。下游 pictoria 有一份 2024 年冻结的机器
+    翻译基线,上游没有名字它就继续显示自己那份 —— `omori` 显示「大森」(把游戏名当成
+    日本姓氏读)、`voiceroid` 显示「声库音」(凭空造的词)。空覆盖不掉它,显式的 null 才行。
+
+    记下被拒绝的那个值而不只是标签名:三年后想知道当初否掉的是什么,得有东西可查。
+    """
+    legacy: dict[str, str] = {}
+    for directory in REVIEW_DIRS:
+        for path in sorted(directory.glob("lg*.tsv")):
+            with path.open(encoding="utf-8", newline="") as handle:
+                for row in csv.DictReader(handle, delimiter=DELIMITER):
+                    if row.get("tag") and row.get("legacy_zh"):
+                        legacy[row["tag"]] = row["legacy_zh"]
+
+    path = TRANSLATIONS_DIR / "zh_rejected.json"
+    existing = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    added, skipped = {}, []
+    for directory in REVIEW_DIRS:
+        for source in sorted(directory.glob("fix_lg*.json")):
+            for tag in json.loads(source.read_text(encoding="utf-8")).get("reject", []):
+                if tag not in reviewed:
+                    skipped.append(f"{source.name}: {tag} 不在任何分片里")
+                elif category.get(tag) not in (0, 3, 5):
+                    skipped.append(f"{tag} 分类 {category.get(tag)} 不在本轮范围")
+                elif tag in existing:
+                    skipped.append(f"{tag} 已在拒绝表里")
+                elif tag not in legacy:
+                    skipped.append(f"{tag} 查不到被拒绝的值")
+                else:
+                    added[tag] = legacy[tag]
+    print(f"rejections proposed: {len(added):,}")
+    for line in skipped[:8]:
+        print(f"      skipped -- {line}")
+    if not apply:
+        print("")
+        print(f"--apply not given; {path.name} untouched")
+        return
+    merged = {**existing, **added}
+    path.write_text(json.dumps(merged, ensure_ascii=False, indent=1) + chr(10), encoding="utf-8")
+    print("")
+    print(f"{path}: {len(existing):,} -> {len(merged):,} entries")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--apply", action="store_true", help="write the manual file (default: report only)")
     parser.add_argument("--target", choices=sorted(TARGETS), default="general")
     parser.add_argument("--check-shipped", action="store_true", help="also report format drift in what already ships")
+    parser.add_argument("--rejections", action="store_true", help="merge the reject lists into zh_rejected.json instead")
     args = parser.parse_args()
 
     manual_file, bulk_file, wanted, rounds = TARGETS[args.target]
     reviewed = load_reviewed_tags()
+    if args.rejections:
+        merge_rejections(reviewed, categories(), args.apply)
+        return
     if not reviewed:
         message = f"no shards under {', '.join(str(d) for d in REVIEW_DIRS)}"
         raise SystemExit(message)
