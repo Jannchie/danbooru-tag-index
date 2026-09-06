@@ -207,6 +207,7 @@ def build_converters() -> Converters:
 # 汉字之间的 ASCII 标点。别名池里的中文名是各处抄来的,标点跟着来源走:
 # 「崩坏:星穹铁道」半角冒号,「命运/冠位指定」全角,同一批数据两种写法。
 HAN = "一-鿿〇"
+HAN_CHARS = re.compile(f"[{HAN}]")
 FULLWIDTH = {":": "：", "!": "！", "?": "？", ",": "，", ";": "；"}
 # 成串一起转,否则「这样的我有罪!?」只转得动前一半。句末也转 —— 结尾的「!」
 # 前面是汉字,那它就是中文叹号,`BanG Dream!少女乐团派对!` 里两个「!」性质不同。
@@ -225,6 +226,83 @@ KATAKANA_MIDDLE_DOT = "・"
 
 
 COSPLAY_SUFFIX = "_(cosplay)"
+
+
+HANGUL = re.compile(r"[가-힣ᄀ-ᇿ]")
+KANA = re.compile(r"[぀-ヿ]")
+
+
+WRONG_OPENERS = "「{『【"
+
+
+def repair_brackets(name_maps: dict[str, dict[str, str | None]]) -> int:
+    """别名池里括号配不上对的名字。
+
+    两种坏法,都来自抄写而不是翻译:开括号被写成了别的形状(「足柄「一番くじ)」、
+    「ジャービス{三越)」),或者整对里丢了一个(「エイプリル(DTB」、「(盗贼山惠」)。
+
+    只在数目不平时动手,而且只补形状,不补内容 —— 括号里少了字的那种(「风花雪月)」
+    丢的是「暗黑骑士」)这里补不出来,留给人工层。
+    """
+    fixed = 0
+    for names in name_maps.values():
+        for lang, value in list(names.items()):
+            if not value or value.count("(") == value.count(")"):
+                continue
+            if value.count(")") > value.count("("):
+                wrong = next((c for c in WRONG_OPENERS if c in value), None)
+                out = value.replace(wrong, "(", 1) if wrong else value.rstrip(")")
+            else:
+                out = value.lstrip("(") if value.startswith("(") else value + ")"
+            if out != value:
+                names[lang] = out
+                fixed += 1
+    return fixed
+
+
+def normalize_slugs(name_maps: dict[str, dict[str, str | None]]) -> int:
+    """别名池里混进来的下划线,是标签串而不是名字。
+
+    Danbooru 的 other_names 有一部分是照着标签名写的,`함대_컬렉션`、
+    `バンドリ!_ガールズバンドパーティ!`。显示名里那个下划线该是空格。
+
+    只动含非 ASCII 的值。纯 ASCII 的下划线未必是标签串:`o_o` 的显示名就是「O_O」,
+    那是个颜文字,下划线正是它的脸;`imas_cg` 是有人选的缩写。实测 603 个带下划线的
+    值里,462 个含非 ASCII,全都该换空格,而剩下的都是这两类。
+    """
+    fixed = 0
+    for names in name_maps.values():
+        for lang, value in list(names.items()):
+            if not value or "_" not in value or value.isascii():
+                continue
+            names[lang] = value.replace("_", " ")
+            fixed += 1
+    return fixed
+
+
+def drop_wrong_script(name_maps: dict[str, dict[str, str | None]]) -> int:
+    """写错文字系统的名字整条丢掉。
+
+    韩文用谚文书写。ko 槽里一个只有汉字或假名、一条谚文都没有的值,按构造就不是韩文
+    ——「麻将灵魂」「カガミチヒロ」「怪獣8号」都是这么来的,来源是 *_official.json 那一步
+    LLM 挑名字时挑错了格子。日文那边反过来:日文不用谚文,`shift_up` 的 ja 是「시프트업」。
+
+    丢掉而不是留着:韩文界面上显示一串中文,比什么都不显示更糟,而这里没有能力给出对的
+    韩文。丢掉之后那个格子空着,别的层还能填。
+
+    汉字混谚文的不算:韩文标题确实会带汉字(《쓸쓸하고 찬란하神 - 도깨비》官方就这么写)。
+    """
+    dropped = 0
+    for names in name_maps.values():
+        korean = names.get("ko")
+        if korean and not HANGUL.search(korean) and (HAN_CHARS.search(korean) or KANA.search(korean)):
+            del names["ko"]
+            dropped += 1
+        japanese = names.get("ja")
+        if japanese and HANGUL.search(japanese):
+            del names["ja"]
+            dropped += 1
+    return dropped
 
 
 def inherit_cosplay_names(name_maps: dict[str, dict[str, str | None]]) -> int:
@@ -302,6 +380,13 @@ def normalize_punctuation(name_maps: dict[str, dict[str, str | None]]) -> int:
             if out != value:
                 names[lang] = out
                 fixed += 1
+        # 韩文的间隔号是 ·(U+00B7),日文的是 ・(U+30FB)。两者渲染出来几乎一样,所以
+        # 「안젤리아・카를로스」这种混进来没人看得出。日文那边不能碰 —— 它有 17,560 个
+        # 名字正当地用着 ・。
+        korean = names.get("ko")
+        if korean and KATAKANA_MIDDLE_DOT in korean:
+            names["ko"] = korean.replace(KATAKANA_MIDDLE_DOT, "·")
+            fixed += 1
     return fixed
 
 
@@ -744,6 +829,9 @@ def resolve_display_names(
     )
     # 标点在繁体规范化之前:两种字形都要改,否则简体一改,繁体就不再
     # 等于简体的机器转换结果,normalize_traditional 会判定它是人工写的而放过。
+    print(f"  mismatched brackets repaired: {repair_brackets(name_maps)}")
+    print(f"  slug underscores turned into spaces: {normalize_slugs(name_maps):,}")
+    print(f"  names dropped for being in the wrong script: {drop_wrong_script(name_maps)}")
     print(f"  cosplay names inherited from their base character: {inherit_cosplay_names(name_maps):,}")
     # 字形在标点之前,两者都在繁体规范化之前:后面那一步要看到最终的简体。
     print(f"  glyphs repaired past the script guard: {normalize_simplified(name_maps):,}")

@@ -31,10 +31,12 @@ import json
 import re
 import sqlite3
 
+DELIMITER = chr(9)
+
 from _hanzi import is_simplified
 from _paths import DANBOORU_DB_PATH, TRANSLATIONS_DIR
 
-REVIEW_DIRS = tuple(TRANSLATIONS_DIR / name for name in ("_review_general", "_review2", "_review3", "_review4", "_review_char", "_review5"))
+REVIEW_DIRS = tuple(TRANSLATIONS_DIR / name for name in ("_review_general", "_review2", "_review3", "_review4", "_review_char", "_review5", "_review6"))
 
 # Two vocabularies, two destinations. Ordinary words and proper nouns fail
 # differently -- a mistranslated adjective reads oddly, a mistranslated character
@@ -53,7 +55,7 @@ REVIEW_DIRS = tuple(TRANSLATIONS_DIR / name for name in ("_review_general", "_re
 # Not filename order: that had put the low-frequency pass above the family pass
 # and let it replace 射在地板上 with 精在地板上.
 TARGETS = {
-    "general": (TRANSLATIONS_DIR / "general_manual.json", TRANSLATIONS_DIR / "general_zh.json", (0, 5), ("fix[0-9]*.json", "fix_tail*.json", "fix_lowfreq*.json", "fix_deep*.json", "fix_family*.json", "fix_recheck*.json")),
+    "general": (TRANSLATIONS_DIR / "general_manual.json", TRANSLATIONS_DIR / "general_zh.json", (0, 5), ("fix[0-9]*.json", "fix_tail*.json", "fix_lowfreq*.json", "fix_deep*.json", "fix_family*.json", "fix_recheck*.json", "fix_dup*.json")),
     # Two rounds, unpadded then padded: the second covers 4,800 names against the
     # first's 753, and where they overlap the wider view is the later word. Glob
     # order alone would not say that -- `_review5` sorts before `_review_char`.
@@ -63,6 +65,9 @@ TARGETS = {
     # official titles, literal translations, and one entry standing in for its
     # whole series (`atelier_(series)` as 莱莎的炼金工房).
     "copyright": (TRANSLATIONS_DIR / "copyright_manual.json", None, (3,), ("fix_copy*.json",)),
+    # 不是名字,是名字的零件:角色标签括号里的限定词,消歧时接到名字后面。没有分类可查
+    # (限定词不是标签),所以那道闸门关掉 —— 分片成员检查还在,而它才是拦编造键的那道。
+    "variant": (TRANSLATIONS_DIR / "character_variants.json", None, None, ("fix_q*.json",)),
 }
 
 
@@ -70,11 +75,17 @@ TARGETS = {
 # `bad_pixiv_id` reads 失效Pixiv ID twelve shards away, so it proposes 劣质Daum ID
 # and the family splits again. Reported, never auto-applied: these are the shapes
 # the vocabulary settled on, not laws, and a real exception should be visible.
+# 「lift」不总是掀起衣物:在身体部位上是抬起或托起(抬腿、乳房上托、托臀、撩发),
+# 而 wind_lift 掀的是衣服,主语才是风。
+LIFT_EXCEPTIONS = frozenset({"leg_lift", "breast_lift", "ass_lift", "pectoral_lift", "hair_lift", "chin_lift", "arm_lift", "wind_lift"})
+
 FAMILY_FORMATS = (
     (lambda t: t.startswith("bad_") and t.endswith("_id"), lambda v: v.startswith("失效"), "bad_*_id 用「失效X」"),
     (lambda t: t.endswith("_pull"), lambda v: v.startswith("拉"), "*_pull 用「拉X」"),
     (lambda t: t.endswith("_tug"), lambda v: v.startswith("拉扯"), "*_tug 用「拉扯X」"),
-    (lambda t: t.endswith("_lift"), lambda v: v.startswith("掀起"), "*_lift 用「掀起X」"),
+    # 例外见 LIFT_EXCEPTIONS。原先没有这道例外,于是把 6 个正确的名字报成违规 ——
+    # 而它当时是死代码,没人看见。
+    (lambda t: t.endswith("_lift") and t not in LIFT_EXCEPTIONS, lambda v: v.startswith("掀起"), "*_lift 用「掀起X」"),
     (lambda t: t.startswith("spoken_"), lambda v: v.startswith("对话框"), "spoken_* 用「对话框X」"),
     (lambda t: t.endswith("_(medium)"), lambda v: v.endswith("（媒介）"), "*_(medium) 用「X（媒介）」"),
     (lambda t: t.startswith("cum_on_"), lambda v: v.startswith("射在"), "cum_on_* 用「射在X上」"),
@@ -117,7 +128,12 @@ def load_reviewed_tags() -> set[str]:
     for directory in REVIEW_DIRS:
         for path in sorted(directory.glob("*.tsv")):
             with path.open(encoding="utf-8", newline="") as handle:
-                tags.update(r["tag"] for r in csv.DictReader(handle, delimiter="\t") if r.get("tag"))
+                for row in csv.DictReader(handle, delimiter=DELIMITER):
+                    # 限定词分片的第一列叫 qualifier,不是 tag。同一道防线,同一个理由:
+                    # 编出来的键匹配不上任何东西,谁也不会再注意到它。
+                    key = row.get("tag") or row.get("qualifier")
+                    if key:
+                        tags.add(key)
     return tags
 
 
@@ -133,7 +149,7 @@ def collect(
     reviewed: set[str],
     category: dict[str, int],
     current: dict[str, str],
-    wanted_categories: tuple[int, ...],
+    wanted_categories: tuple[int, ...] | None,
     rounds: tuple[str, ...],
     strip: bool = False,
 ) -> tuple[dict[str, str], dict[str, list[str]]]:
@@ -158,11 +174,14 @@ def collect(
                     value = strip_qualifier(tag, value)
                 if tag not in reviewed:
                     reject("tag was never in a shard", f"{path.name}: {tag}")
-                elif category.get(tag) not in wanted_categories:
+                elif wanted_categories is not None and category.get(tag) not in wanted_categories:
                     reject("wrong category for this target", f"{tag} (category {category.get(tag)})")
                 elif not value:
                     reject("empty or non-string", tag)
-                elif value == current.get(tag):
+                elif value == (strip_qualifier(tag, current[tag]) if strip and current.get(tag) else current.get(tag)):
+                    # 两边都剥掉括号后缀再比。后缀是消歧层加的,审查看到的是加完的值,
+                    # 于是「把后缀去掉」会被当成一处改动 —— 一个 shard 里就有上百条,
+                    # 合进去只是在人工层堆一堆什么都不改的条目。
                     reject("unchanged", tag)
                 elif not is_simplified(value):
                     reject("not canonical simplified Chinese", f"{tag}: {current.get(tag)} -> {value}")
@@ -178,6 +197,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--apply", action="store_true", help="write the manual file (default: report only)")
     parser.add_argument("--target", choices=sorted(TARGETS), default="general")
+    parser.add_argument("--check-shipped", action="store_true", help="also report format drift in what already ships")
     args = parser.parse_args()
 
     manual_file, bulk_file, wanted, rounds = TARGETS[args.target]
@@ -187,7 +207,9 @@ def main() -> None:
         raise SystemExit(message)
     manual = json.loads(manual_file.read_text(encoding="utf-8")) if manual_file.exists() else {}
     bulk = json.loads(bulk_file.read_text(encoding="utf-8")) if bulk_file else {}
-    if bulk_file is None:
+    if args.target == "variant":
+        bulk = {}
+    elif bulk_file is None:
         # No bulk file for proper nouns -- the value being reviewed is whatever
         # the resolved export currently ships, which is where the alias-pool
         # heuristic's answer ends up.
@@ -217,6 +239,16 @@ def main() -> None:
     if warnings:
         print(f"  与既有族格式不符 {len(warnings)} 条(仅报告,未拦截):")
         for line in warnings[:12]:
+            print(f"      {line}")
+
+    # 已发布的名字也扫一遍。只查新提案的话,历史欠账永远看不见 —— 这些规则是照着
+    # 语料写出来的,而语料里违反它们的有 63 条,包括 20 个 bad_*_id 里唯一那条
+    # 「坏drawr ID」。它们能留下来,正是因为写规则的那一轮里这个函数没人调用。
+    if args.check_shipped:
+        shipped = {t: v for t, v in {**bulk, **manual}.items() if isinstance(v, str)}
+        stale = format_warnings(shipped)
+        print(f"  已发布语料里不符族格式的: {len(stale)}")
+        for line in stale[:20]:
             print(f"      {line}")
 
     if not args.apply:
