@@ -33,20 +33,54 @@ import sqlite3
 from _hanzi import is_simplified
 from _paths import DANBOORU_DB_PATH, TRANSLATIONS_DIR
 
-REVIEW_DIRS = (TRANSLATIONS_DIR / "_review_general", TRANSLATIONS_DIR / "_review2")
+REVIEW_DIRS = tuple(TRANSLATIONS_DIR / name for name in ("_review_general", "_review2", "_review3", "_review4", "_review_char"))
 
-# Rounds in ascending order of authority, because they see different amounts.
-# A single-entry pass judges one row at a time; the word-family pass gets every
-# tag sharing a root laid out together, which is the only way to see that
-# `dress_tug` was translated as a tugboat while `skirt_tug` was not; the recheck
-# pass exists specifically to overturn what an earlier round decided.
+# Two vocabularies, two destinations. Ordinary words and proper nouns fail
+# differently -- a mistranslated adjective reads oddly, a mistranslated character
+# name is confidently wrong -- so they are reviewed separately and merged
+# separately, and neither file can receive the other's category.
 #
-# Not filename order -- that put the low-frequency pass above the family pass and
-# let it replace 射在地板上 with 精在地板上.
-ROUND_ORDER = ("fix[0-9]*.json", "fix_lowfreq*.json", "fix_family*.json", "fix_recheck*.json")
-MANUAL_FILE = TRANSLATIONS_DIR / "general_manual.json"
-BULK_FILE = TRANSLATIONS_DIR / "general_zh.json"
-ORDINARY_WORD_CATEGORIES = (0, 5)
+# Each target lists its rounds in ascending order of authority, because a round
+# sees only what its sharding shows it. A single-entry pass judges one row at a
+# time; the word-family pass gets every tag sharing a root laid out together,
+# which is the only way to see `dress_tug` translated as a tugboat while
+# `skirt_tug` was not; a deep pass outranks the shallow one it repeats (the tail
+# round was run by a weaker model that sampled rather than read -- 5,839 rows for
+# 84 findings against the deep pass's ten times that); and a recheck exists
+# specifically to overturn the round it re-reads.
+#
+# Not filename order: that had put the low-frequency pass above the family pass
+# and let it replace 射在地板上 with 精在地板上.
+TARGETS = {
+    "general": (TRANSLATIONS_DIR / "general_manual.json", TRANSLATIONS_DIR / "general_zh.json", (0, 5), ("fix[0-9]*.json", "fix_tail*.json", "fix_lowfreq*.json", "fix_deep*.json", "fix_family*.json", "fix_recheck*.json")),
+    "character": (TRANSLATIONS_DIR / "character_manual.json", None, (4,), ("fix_char*.json",)),
+}
+
+
+# Formats settled in earlier rounds. A reviewer shown 573 rows cannot see that
+# `bad_pixiv_id` reads 失效Pixiv ID twelve shards away, so it proposes 劣质Daum ID
+# and the family splits again. Reported, never auto-applied: these are the shapes
+# the vocabulary settled on, not laws, and a real exception should be visible.
+FAMILY_FORMATS = (
+    (lambda t: t.startswith("bad_") and t.endswith("_id"), lambda v: v.startswith("失效"), "bad_*_id 用「失效X」"),
+    (lambda t: t.endswith("_pull"), lambda v: v.startswith("拉"), "*_pull 用「拉X」"),
+    (lambda t: t.endswith("_tug"), lambda v: v.startswith("拉扯"), "*_tug 用「拉扯X」"),
+    (lambda t: t.endswith("_lift"), lambda v: v.startswith("掀起"), "*_lift 用「掀起X」"),
+    (lambda t: t.startswith("spoken_"), lambda v: v.startswith("对话框"), "spoken_* 用「对话框X」"),
+    (lambda t: t.endswith("_(medium)"), lambda v: v.endswith("（媒介）"), "*_(medium) 用「X（媒介）」"),
+    (lambda t: t.startswith("cum_on_"), lambda v: v.startswith("射在"), "cum_on_* 用「射在X上」"),
+    (lambda t: t.startswith("unworn_"), lambda v: v.startswith(("未穿", "未戴")), "unworn_* 用「未穿/未戴的X」"),
+    (lambda t: t.endswith("_censor") and t != "bar_censor", lambda v: "打码" in v or "遮挡" in v or v == "圣光", "*_censor 用「X打码」"),
+)
+
+
+def format_warnings(accepted: dict[str, str]) -> list[str]:
+    out = []
+    for tag, value in sorted(accepted.items()):
+        for matches, ok, rule in FAMILY_FORMATS:
+            if matches(tag) and not ok(value):
+                out.append(f"{tag}: {value}  ({rule})")
+    return out
 
 
 def load_reviewed_tags() -> set[str]:
@@ -78,10 +112,12 @@ def collect(
     reviewed: set[str],
     category: dict[str, int],
     current: dict[str, str],
+    wanted_categories: tuple[int, ...],
+    rounds: tuple[str, ...],
 ) -> tuple[dict[str, str], dict[str, list[str]]]:
     """Every accepted proposal, plus why each rejected one was dropped.
 
-    A later round overrules an earlier one for the same tag; see ROUND_ORDER for
+    A later round overrules an earlier one for the same tag; see TARGETS for
     what "later" means and why it is not filename order.
     """
     accepted: dict[str, str] = {}
@@ -91,15 +127,15 @@ def collect(
     def reject(reason: str, detail: str) -> None:
         rejected.setdefault(reason, []).append(detail)
 
-    for pattern in ROUND_ORDER:
+    for pattern in rounds:
         for path in sorted(q for directory in REVIEW_DIRS for q in directory.glob(pattern)):
             data = json.loads(path.read_text(encoding="utf-8"))
             for tag, raw in data.get("fixes", {}).items():
                 value = raw.strip() if isinstance(raw, str) else ""
                 if tag not in reviewed:
                     reject("tag was never in a shard", f"{path.name}: {tag}")
-                elif category.get(tag) not in ORDINARY_WORD_CATEGORIES:
-                    reject("not a general/meta tag", f"{tag} (category {category.get(tag)})")
+                elif category.get(tag) not in wanted_categories:
+                    reject("wrong category for this target", f"{tag} (category {category.get(tag)})")
                 elif not value:
                     reject("empty or non-string", tag)
                 elif value == current.get(tag):
@@ -116,16 +152,24 @@ def collect(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--apply", action="store_true", help="write general_manual.json (default: report only)")
+    parser.add_argument("--apply", action="store_true", help="write the manual file (default: report only)")
+    parser.add_argument("--target", choices=sorted(TARGETS), default="general")
     args = parser.parse_args()
 
+    manual_file, bulk_file, wanted, rounds = TARGETS[args.target]
     reviewed = load_reviewed_tags()
     if not reviewed:
         message = f"no shards under {', '.join(str(d) for d in REVIEW_DIRS)}"
         raise SystemExit(message)
-    manual = json.loads(MANUAL_FILE.read_text(encoding="utf-8"))
-    bulk = json.loads(BULK_FILE.read_text(encoding="utf-8"))
-    accepted, rejected = collect(reviewed, categories(), {**bulk, **manual})
+    manual = json.loads(manual_file.read_text(encoding="utf-8")) if manual_file.exists() else {}
+    bulk = json.loads(bulk_file.read_text(encoding="utf-8")) if bulk_file else {}
+    if args.target == "character":
+        # No bulk file for names -- the value being reviewed is whatever the
+        # resolved export currently ships, which is where the alias-pool
+        # heuristic's answer ends up.
+        resolved = json.loads((TRANSLATIONS_DIR / "display_names.json").read_text(encoding="utf-8"))
+        bulk = {t: v["zh_hans"] for t, v in resolved.items() if v.get("zh_hans")}
+    accepted, rejected = collect(reviewed, categories(), {**bulk, **manual}, wanted, rounds)
 
     print(f"tags reviewed: {len(reviewed):,}, proposals accepted: {len(accepted):,}")
     for reason, items in sorted(rejected.items(), key=lambda kv: -len(kv[1])):
@@ -144,12 +188,12 @@ def main() -> None:
             del accepted[tag]
 
     if not args.apply:
-        print("\n--apply not given; general_manual.json untouched")
+        print(f"\n--apply not given; {manual_file.name} untouched")
         return
 
     merged = {**manual, **accepted}
-    MANUAL_FILE.write_text(json.dumps(merged, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    print(f"\n{MANUAL_FILE}: {len(manual):,} -> {len(merged):,} entries")
+    manual_file.write_text(json.dumps(merged, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    print(f"\n{manual_file}: {len(manual):,} -> {len(merged):,} entries")
 
 
 if __name__ == "__main__":

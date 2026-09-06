@@ -118,11 +118,24 @@ SUPPLEMENT_FILE = "zh_supplement.json"
 # name someone checked by hand outranks every automatic layer.
 MANUAL_FILE = "zh_manual.json"
 
+# Character names a review corrected. Separate from zh_manual.json because that
+# file is a short list of decisions made by hand with the whole picture in view,
+# and folding hundreds of reviewed names into it would blur what it is. Applied
+# before it, so a hand decision still wins.
+CHARACTER_MANUAL_FILE = "character_manual.json"
+
 # Tags whose pool-derived Chinese name a review found wrong without finding a
 # replacement. Separate from the supplement because it is the opposite assertion:
 # that file says "the name is X", this one says "whatever the pool gave is not it".
 REJECTED_FILE = "zh_rejected.json"
 
+# Chinese for the qualifiers Danbooru puts in brackets to tell one depiction of a
+# character from another. Hand-maintained: they are franchise vocabulary, not
+# ordinary words -- (third_ascension) is a Fate/Grand Order stage, (harbinger) a
+# Genshin faction, (1st_costume) a VTuber's debut outfit.
+VARIANT_FILE = "character_variants.json"
+
+BRACKETED = re.compile(r"\(([^()]+)\)")
 KATAKANA = re.compile(r"[ァ-ヶ]")
 
 # A tag name's length is stored in one byte; this is a real format constraint,
@@ -447,6 +460,106 @@ def load_zh_rejections(
     return dropped
 
 
+def disambiguate_variants(
+    name_maps: dict[str, dict[str, str | None]],
+    translations_dir: Path,
+    character_tags: set[str],
+    copyright_names: dict[str, str],
+    lang: str = "zh_hans",
+    also: tuple[str, ...] = ("zh_hant",),
+) -> int:
+    """Put the bracketed qualifier back on names that need it to stay distinct.
+
+    Danbooru distinguishes depictions of one character with a bracketed suffix,
+    and the name maps drop it: `akemi_homura` and `akemi_homura_(magical_girl)`
+    both come out 晓美焰, `fujimaru_ritsuka_(male)` and `..._(female)` both 藤丸立香.
+    1,176 Chinese names covered more than one character tag, over 3,247 tags. In a
+    tag list they are the same entry twice.
+
+    Dropping the suffix is right when it only disambiguates the English slug --
+    甘雨 needs no "(genshin impact)" because no other character here is 甘雨. It is
+    wrong the moment a second tag lands on the same name, and that is exactly what
+    this detects: group by Chinese name, and only touch groups with a collision.
+
+    Within a group the tag carrying the fewest brackets keeps the bare name -- it
+    is the base depiction the others are variants of. Ties (male/female) all take
+    a suffix. Copyright suffixes are translated through the copyright names this
+    project already has, so `shigure_(kancolle)` becomes 时雨（舰队Collection）;
+    everything else goes through the hand-maintained variant table. A suffix in
+    neither is left in English rather than guessed at: an unreadable qualifier
+    still separates two tags, a wrong one misinforms.
+    """
+    path = translations_dir / VARIANT_FILE
+    variants = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+
+    groups: dict[str, list[str]] = {}
+    for tag in character_tags:
+        name = name_maps.get(tag, {}).get(lang)
+        if name:
+            groups.setdefault(name, []).append(tag)
+
+    renamed = untranslated = 0
+    unknown: set[str] = set()
+    for tags in groups.values():
+        if len(tags) < 2:
+            continue
+        shared = set.intersection(*[set(BRACKETED.findall(tag)) for tag in tags])
+        stems = {tag: BRACKETED.sub("", tag).replace("__", "_").strip("_") for tag in tags}
+
+        def marks(tag: str) -> list[str]:
+            """The qualifiers that set this tag apart from the rest of its group.
+
+            Some variants are marked by a prefix rather than a bracket:
+            `female_admiral_(kancolle)` against `admiral_(kancolle)`. Decided per
+            tag against the stems it actually extends, not for the group as a
+            whole -- 「博士」 covers four tags from three franchises, and asking
+            whether *every* stem shares a base found `percy` and gave up, leaving
+            doctor and male_doctor both 博士（明日方舟）. Tags no other stem is a
+            suffix of, like `hatsune_miku` beside `magical_mirai_miku`, get no
+            prefix and stay as they are.
+            """
+            stem = stems[tag]
+            extended = [s for s in stems.values() if s != stem and stem.endswith(s)]
+            prefix = stem[: -len(min(extended, key=len))].rstrip("_") if extended else ""
+            return ([prefix] if prefix else []) + [q for q in BRACKETED.findall(tag) if q not in shared]
+
+        # The plainest tag keeps the bare name: it is the base depiction the
+        # others are variants of. Measured with the same function that produces
+        # the labels -- counting brackets separately once let `female_admiral`
+        # pass as the plainest of its group and stay 提督 like the other five.
+        plainest = min(len(marks(t)) for t in tags)
+        sole = sum(1 for t in tags if len(marks(t)) == plainest) == 1
+
+        for tag in tags:
+            qualifiers = marks(tag)
+            if not qualifiers or (len(qualifiers) == plainest and sole):
+                continue
+
+            labels = []
+            for qualifier in qualifiers:
+                label = copyright_names.get(qualifier) or variants.get(qualifier)
+                if label is None:
+                    label = qualifier.replace("_", " ")
+                    unknown.add(qualifier)
+                    untranslated += 1
+                labels.append(label)
+            suffix = f"（{'·'.join(labels)}）"
+            slot = name_maps[tag]
+            slot[lang] = f"{slot[lang]}{suffix}"
+            # The other scripts of the same language follow: they are the same
+            # name in different glyphs and would otherwise disagree with it.
+            for other in also:
+                if slot.get(other):
+                    slot[other] = f"{slot[other]}{suffix}"
+            renamed += 1
+
+    print(f"  {VARIANT_FILE}: {renamed:,} colliding {lang} character names given their qualifier")
+    if unknown:
+        top = ", ".join(sorted(unknown)[:8])
+        print(f"    {len(unknown)} qualifiers had no translation and kept the English ({untranslated} uses): {top}")
+    return renamed
+
+
 def resolve_display_names(
     translations_dir: Path,
     wanted: set[str] | None,
@@ -470,7 +583,38 @@ def resolve_display_names(
     # 拒绝在补充之后:审查若给出了替代名,那条断言更强,不该再被撤掉。
     load_zh_rejections(translations_dir, wanted, name_maps, converters)
     # 人工修正最后:它既能填也能改,而且比"这个名字是错的"更强 —— 它说得出对的是什么。
+    # 角色名审查在人工层之前:它推翻的是别名池的启发式选择,而人工层推翻的是它。
+    load_zh_supplement(translations_dir, wanted, name_maps, converters, CHARACTER_MANUAL_FILE)
     load_zh_supplement(translations_dir, wanted, name_maps, converters, MANUAL_FILE)
+    # 消歧在规范化之前:它会往名字后面接括号,那部分也要跟着转成台湾字形。
+    # 两个 map 的键本身就是分类 —— 谁是角色、谁是作品,读文件即知,不必开数据库。
+    copyrights = json.loads((translations_dir / "copyright_name_map.json").read_text(encoding="utf-8"))
+    ordinary = json.loads((translations_dir / GENERAL_FILE).read_text(encoding="utf-8"))
+    # Characters by subtraction, not from character_name_map: a tag with no wiki
+    # aliases is absent from that map and got its name from the supplement
+    # instead -- `akemi_homura_(magical_girl)` among them, which is exactly the
+    # kind of variant this pass exists for. What is left after removing the
+    # copyright and general/meta vocabularies is the character namespace.
+    characters = set(name_maps) - set(copyrights) - set(ordinary)
+    disambiguate_variants(
+        name_maps,
+        translations_dir,
+        characters,
+        {tag: names["zh_hans"] for tag, names in copyrights.items() if names.get("zh_hans")},
+    )
+    # Japanese collides far harder than Chinese -- 3,803 names against 145 --
+    # because build_name_map picks it with `shortest` and nothing reviews it, so
+    # 加賀 covers the Kantai, Azur Lane and Warship Girls characters at once. The
+    # variant table is Chinese, so a qualifier with no Japanese source stays in
+    # English: unreadable still separates two tags, wrong misinforms.
+    disambiguate_variants(
+        name_maps,
+        translations_dir,
+        characters,
+        {tag: names["ja"] for tag, names in copyrights.items() if names.get("ja")},
+        lang="ja",
+        also=(),
+    )
     # 最后:前面每一层都可能新填简体并派生繁体,规范化必须看到最终结果。
     normalize_traditional(name_maps, converters)
     return name_maps

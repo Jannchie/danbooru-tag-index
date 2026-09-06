@@ -1,0 +1,16 @@
+{
+ "fixes": {
+  "adjusting_bow": "调整蝴蝶结",
+  "bandeau_lift": "掀起抹胸",
+  "bulge_lift": "掀起隆起",
+  "choker_pull": "拉项圈"
+ },
+ "uncertain": {
+  "bandaid_on_horn": "当前「喇叭」可能应为「兽角」或「角」，但不确定上下文是否明确"
+ },
+ "patterns": [
+  "*_bow 词根误译为「弓」而非「蝴蝶结」（adjusting_bow）",
+  "*_lift 词根误译为「提升机」「升力」而非「撩起衣物」（bandeau_lift、bulge_lift）",
+  "*_pull 语序错误「X拉」而非「拉X」（choker_pull）"
+ ]
+}

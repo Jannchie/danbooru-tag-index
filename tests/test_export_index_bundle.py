@@ -463,3 +463,81 @@ def test_missing_rejection_file_is_not_an_error(tmp_path):
     from export_index_bundle import load_zh_rejections
 
     assert load_zh_rejections(tmp_path, set(), {}, None) == 0
+
+
+def _variants(tmp_path, table=None):
+    from export_index_bundle import VARIANT_FILE
+
+    (tmp_path / VARIANT_FILE).write_text(
+        json.dumps(table if table is not None else {"magical_girl": "魔法少女", "female": "女性"}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    return tmp_path
+
+
+def test_variant_suffix_is_restored_only_where_names_collide(tmp_path):
+    # 甘雨 needs no "(genshin impact)" -- nothing else here is 甘雨. 晓美焰 does,
+    # because the magical girl form lands on the same name.
+    from export_index_bundle import disambiguate_variants
+
+    maps = {
+        "ganyu_(genshin_impact)": {"zh_hans": "甘雨"},
+        "akemi_homura": {"zh_hans": "晓美焰"},
+        "akemi_homura_(magical_girl)": {"zh_hans": "晓美焰"},
+    }
+    disambiguate_variants(maps, _variants(tmp_path), set(maps), {})
+    assert maps["ganyu_(genshin_impact)"]["zh_hans"] == "甘雨"
+    assert maps["akemi_homura"]["zh_hans"] == "晓美焰"
+    assert maps["akemi_homura_(magical_girl)"]["zh_hans"] == "晓美焰（魔法少女）"
+
+
+def test_a_tie_gives_every_tag_its_qualifier(tmp_path):
+    from export_index_bundle import disambiguate_variants
+
+    maps = {
+        "fujimaru_ritsuka_(male)": {"zh_hans": "藤丸立香"},
+        "fujimaru_ritsuka_(female)": {"zh_hans": "藤丸立香"},
+    }
+    disambiguate_variants(maps, _variants(tmp_path, {"male": "男性", "female": "女性"}), set(maps), {})
+    assert maps["fujimaru_ritsuka_(male)"]["zh_hans"] == "藤丸立香（男性）"
+    assert maps["fujimaru_ritsuka_(female)"]["zh_hans"] == "藤丸立香（女性）"
+
+
+def test_a_prefix_qualifies_as_well_as_a_bracket(tmp_path):
+    # 「博士」covers four tags from three franchises. Asking whether *every* stem
+    # shares a base finds `percy` and gives up, leaving the two arknights tags
+    # identical; the prefix has to be decided per tag.
+    from export_index_bundle import disambiguate_variants
+
+    maps = {
+        "doctor_(arknights)": {"zh_hans": "博士"},
+        "male_doctor_(arknights)": {"zh_hans": "博士"},
+        "percy_(identity_v)": {"zh_hans": "博士"},
+    }
+    disambiguate_variants(maps, _variants(tmp_path, {"male": "男性"}), set(maps),
+                          {"arknights": "明日方舟", "identity_v": "第五人格"})
+    assert maps["doctor_(arknights)"]["zh_hans"] == "博士（明日方舟）"
+    assert maps["male_doctor_(arknights)"]["zh_hans"] == "博士（男性·明日方舟）"
+    assert maps["percy_(identity_v)"]["zh_hans"] == "博士（第五人格）"
+
+
+def test_two_tags_for_one_person_are_left_alone(tmp_path):
+    # Neither stem is a suffix of the other and there is no distinguishing
+    # bracket, so there is nothing to qualify with -- and nothing to fix: they
+    # really are the same character.
+    from export_index_bundle import disambiguate_variants
+
+    maps = {"hatsune_miku": {"zh_hans": "初音未来"}, "magical_mirai_miku": {"zh_hans": "初音未来"}}
+    disambiguate_variants(maps, _variants(tmp_path), set(maps), {})
+    assert maps["hatsune_miku"]["zh_hans"] == "初音未来"
+    assert maps["magical_mirai_miku"]["zh_hans"] == "初音未来"
+
+
+def test_an_untranslated_qualifier_falls_back_to_english(tmp_path):
+    # An unreadable qualifier still separates two tags; a guessed one misinforms.
+    from export_index_bundle import disambiguate_variants
+
+    maps = {"x_(alpha)": {"zh_hans": "甲"}, "x_(some_event_2026)": {"zh_hans": "甲"}}
+    disambiguate_variants(maps, _variants(tmp_path, {"alpha": "阿尔法"}), set(maps), {})
+    assert maps["x_(alpha)"]["zh_hans"] == "甲（阿尔法）"
+    assert maps["x_(some_event_2026)"]["zh_hans"] == "甲（some event 2026）"

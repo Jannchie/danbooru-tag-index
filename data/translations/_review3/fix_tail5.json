@@ -1,0 +1,39 @@
+{
+ "fixes": {
+  "playstation_1": "PlayStation 1",
+  "playstation_3": "PlayStation 3",
+  "playstation_symbols": "PlayStation 符号",
+  "rabbit_charm": "兔子挂饰",
+  "sagittarius_(zodiac)": "射手座（黄道带）",
+  "scorpio_(zodiac)": "天蝎座（黄道带）",
+  "see-through_bow": "透视蝴蝶结",
+  "s.w.a.t.": "特警队",
+  "shiritori": "词尾接龙",
+  "shared_cape": "共用斗篷",
+  "sashimono": "竹工艺品",
+  "shorts_lift": "掀起短裤",
+  "sports_bra_pull": "拉运动文胸",
+  "spoken_flower": "对话框花",
+  "spoken_letter": "对话框信函",
+  "spoken_paw_print": "对话框爪印",
+  "spoken_scene": "对话框场景",
+  "spoken_thumbs_up": "对话框竖起大拇指",
+  "spoken_venus_symbol": "对话框金星符号",
+  "spoken_www": "对话框 www"
+ },
+ "uncertain": {
+  "shining_needle_castle": "有符号错误（∆的针城），无法判断正确译法",
+  "skorpion_vz._61": "枪械型号，难以确认标准中文名是 vz.61 还是其他译法"
+ },
+ "patterns": [
+  "品牌名被通用词替代：PlayStation 系列用「游戏机」",
+  "词根 *_charm 全误译为「魅力」应为「挂饰」",
+  "zodiac 标签混用「十二生肖」和「黄道带」应统一",
+  "*_bow 误译为「弓」应为「蝴蝶结」",
+  "*_lift 误译为「提升」应为「撩起/拉起」",
+  "*_pull 及 *_bra_pull 翻译不够直接，应为「拉X」格式",
+  "spoken_* 整族误译为「说话的/口头/口语」应为「对话框X」",
+  "日文词被错译：sashimono 误为「生鱼片」（应为竹工艺品），shiritori 误为「知鸟」（应为词尾接龙）",
+  "英文单词 cape 误译为「海角」应为「斗篷」"
+ ]
+}

@@ -1,0 +1,48 @@
+{
+ "fixes": {
+  "clippers": "剪刀",
+  "cocking_gun": "拉枪栓",
+  "colt_commando": "柯尔特突击队",
+  "colt_python": "柯尔特蟒蛇",
+  "conifer": "针叶树",
+  "crayon_(medium)": "蜡笔（媒介）",
+  "cradling_head": "抱头",
+  "crane_stance": "鹤姿态",
+  "crop_top_lift": "掀起上衣",
+  "cum_bucket": "精液桶",
+  "cum_in_bowl": "射在碗里",
+  "cum_in_eye": "射在眼睛里",
+  "cum_on_bed": "射在床上",
+  "cum_on_crotch": "射在胯部",
+  "cum_on_figure": "射在图上",
+  "cum_on_gloves": "射在手套上",
+  "cum_on_headwear": "射在头饰上",
+  "cum_on_lips": "射在嘴唇上",
+  "cum_on_mask": "射在面具上",
+  "cum_on_object": "射在物体上",
+  "cum_on_sheets": "射在床单上",
+  "cum_on_skirt": "射在裙子上",
+  "cum_on_tail": "射在尾巴上",
+  "cum_on_testicles": "射在睾丸上",
+  "cum_swap": "精液交换",
+  "cumdrip_onto_panties": "精液滴在内裤上",
+  "cumdrip_through_panties": "精液渗过内裤",
+  "distracted_boyfriend_(meme)": "分心的男朋友（梗）",
+  "eighth_rest": "八分音符休止符",
+  "extended_magazine": "扩展弹匣"
+ },
+ "uncertain": {
+  "cloud_strife_(cosplay)": "「云冲突」可能是 GPT 词序错误，但 Cloud Strife 是游戏角色名，不确定是否应保留原名",
+  "comb_over": "「梳过式」语序奇怪，但可能是准确的发型术语音译",
+  "compass_rose": "「罗盘」应该是「罗盘玫瑰」还是「风玫瑰」，需要确认常用译法",
+  "erdtree_(elden_ring)": "「erdtree」未翻译，应该是「艾尔德之树」还是保留英文",
+  "epee": "「重剑」是否应为「花剑」取决于具体含义定义",
+  "eyepatch_pull": "「眼罩拉力」应该是「拉眼罩」，但没有同词根标签对照",
+  "eyewear_pull": "「眼镜拉力」应该是「拉眼镜」，但没有同词根标签对照"
+ },
+ "patterns": [
+  "词根整族错误：所有 cum_* 标签统一误用「暨」，应为「精液」相关词汇，这是机械音译或选词错误导致的成批问题",
+  "品牌名误读：colt_* 系列（Colt 枪械品牌）全部音译为「小马」，实际应为「柯尔特」——同品牌名被字面直译的问题",
+  "关键词选错：crane 在「crane_stance」中选了「起重机」而非「鹤」，clippers 选了「快船队」而非「剪刀」——一词多义的上下文判断失误"
+ ]
+}

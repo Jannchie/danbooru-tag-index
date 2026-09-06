@@ -1,0 +1,23 @@
+{
+  "fixes": {
+    "hadouken": "波动拳",
+    "hakama_pull": "拉袴",
+    "gradient_bow": "渐变蝴蝶结",
+    "glitch_censor": "故障打码",
+    "hand_over_another's_eyes": "蒙住别人的眼睛",
+    "hand_to_hand": "肉搏"
+  },
+  "uncertain": {
+    "hand_sonic": "Sonic 角色配件，不确定官方译名",
+    "goshoguruma": "日语词汇（可能是刀名「五所鹤丸」），无法确认官方中文译法",
+    "haigure_pose": "日语词汇（可能是「拝跪」姿势），不确定准确译法",
+    "haregi": "日语词汇，应为「晴着」但无法确认",
+    "hand_eye": "可能有特定含义，仅翻译为「手眼」似乎不够完整"
+  },
+  "patterns": [
+    "词尾 *_pull 语序错误（拉X 而非 X拉）— 如 hakama_pull",
+    "词尾 *_censor 误译为「检查器」而非「打码」— 如 glitch_censor",
+    "词尾 *_bow 不一致，有的翻「蝴蝶结」有的翻「弓」— 如 gradient_bow 应为蝴蝶结",
+    "日语词汇音译不当或拼音错误 — 如 hadouken 为「波动拳」非「波道轩」"
+  ]
+}

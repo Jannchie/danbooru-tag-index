@@ -1,0 +1,18 @@
+{
+ "fixes": {
+  "w_(arknights)": "W",
+  "ump45_(girls'_frontline)": "UMP45(少女前线)",
+  "kotobuki_tsumugi": "琴吹紬",
+  "meltryllis_(fate)": "梅尔特莉莉丝"
+ },
+ "uncertain": {
+  "cyrene_(philia093)_(honkai:_star_rail)": "tag带有同人画师标注(philia093)，疑似崩铁同人原创角色，现译「小昔涟」无法核实是否为通行译名",
+  "hilda_(pokemon)": "agent 主张改「斗子」,但别名池与 ja 均为「透子」,依据不足"
+ },
+ "patterns": [
+  "群体/姐妹组别名被误当成单一角色名：ump45_(girls'_frontline)现名「UMP姉妹」实为UMP45系列姐妹组的组合tag，而非该角色本名",
+  "系列名被错误拼接进角色名字段：w_(arknights)现名「明日方舟w」把series列的作品名和角色名粘在一起，格式与其他明日方舟干员词条（如「黍」「莫斯提马」）不一致",
+  "选用生僻异体字而非常见汉字：kotobuki_tsumugi现名「琴吹䌷」的「䌷」是「紬」的生僻异体，ja列本身写的是通行的「紬」",
+  "官方译名变更/形近字导致的偏差：meltryllis_(fate)沿用了角色改名前的旧译「溶解莉莉丝」，未跟进官方新译名「梅尔特莉莉丝」；hilda_(pokemon)的「透」应为形近字「鬥」简体「斗」之误，源头ja列本身就写错了字"
+ ]
+}

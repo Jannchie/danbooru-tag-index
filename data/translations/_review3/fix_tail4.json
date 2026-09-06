@@ -1,0 +1,28 @@
+{
+ "fixes": {
+  "leaf_censor": "叶黑条",
+  "leotard_lift": "掀起紧身衣",
+  "leotard_tug": "拉扯紧身衣",
+  "loincloth_lift": "掀起腰布",
+  "motteke!_serafuku": "莫特克！水手服",
+  "ofuda_earrings": "符咒耳环",
+  "ofuda_on_leg": "符咒腿部",
+  "mawashi": "丁字裤",
+  "male_swimwear_pull": "拉男泳衣",
+  "pantyhose_tug": "拉扯连裤袜",
+  "maruchan_akai_kitsune_udon": "丸子赤狐乌冬面",
+  "maruchan_midori_no_tanuki_tensoba": "丸子绿狸天荞面",
+  "nissin_donbei": "日清天荞面"
+ },
+ "uncertain": {
+  "maboroshi_no_ginzuishou": "不确定官方译名，可能是文艺作品名",
+  "makinami_mari_illustrious": "姓名翻译，缺乏官方确认",
+  "melting_eyes": "\"融化\"可能应是\"熔化\"，但用法差异不大"
+ },
+ "patterns": [
+  "词根混淆：*_lift被误译为\"提升机\"、*_tug被误译为\"拖船\"",
+  "品牌名误音译：maruchan/nissin等日本食品品牌被音译成\"丸酱\"\"兵卫\"而非正式名",
+  "日语词无意义音译：serafuku音译\"濑福\"而非\"水手服\"、mawashi音译\"马瓦希\"而非\"丁字裤\"、ofuda音译\"奥夫达\"而非\"符咒\"",
+  "拉扯类标签误分类：*_pull/*_tug误作\"提升机\"\"拖船\"等工业词汇"
+ ]
+}

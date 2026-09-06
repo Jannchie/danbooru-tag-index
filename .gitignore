@@ -32,3 +32,6 @@ logs/
 #   data/translations/zh_manual.json
 #   data/translations/general_zh.json
 #   data/translations/general_manual.json
+data/translations/_review3/*.tsv
+data/translations/_review4/*.tsv
+data/translations/_review_char/*.tsv
