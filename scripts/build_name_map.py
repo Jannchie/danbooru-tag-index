@@ -37,7 +37,13 @@ def fill_cjk(chosen: dict[str, str]) -> dict[str, str]:
     elif is_han_name(ja):
         base = _jp2t.convert(ja)
     else:
-        return chosen  # 无汉字基准可复用
+        # 无汉字基准。但中文两栏里若有一栏填着,那是个拉丁名(少女前线的 WA2000、AK-12),
+        # 简繁写法本来就相同 —— 对镜一份,免得只有一半语言显示得出来。
+        if hans and not hant:
+            chosen["zh_hant"] = hans
+        elif hant and not hans:
+            chosen["zh_hans"] = hant
+        return chosen
     if not hant:
         chosen["zh_hant"] = base
     if not hans:
@@ -114,6 +120,8 @@ def pick_copyright(tag: str, buckets: dict[str, list[str]]) -> dict[str, str]:
 
 
 _DISAMBIG = re.compile(r"_\([^()]*\)$")
+# 名字末尾的括注,半角全角都算。
+_TRAILING_BRACKET = re.compile(r"[(（][^()（）]*[)）]$")
 
 
 def strip_disambig(tag: str) -> str:
@@ -126,12 +134,32 @@ def character_en(tag: str) -> str:
 
 
 def pick_character(tag: str, buckets: dict[str, list[str]]) -> dict[str, str]:
-    # 非歧义角色(每语言桶仅 1 候选)的兜底:en 用消歧后的 tag 罗马名,其余取最短
+    # en 用消歧后的 tag 罗马名;其余取首项,理由和 primary() 里写的一样,而且在角色上
+    # 更明显 —— 最短的那个别名往往是昵称、CP 名或梗:初音ミク 输给 ミク、鹿目まどか 输给
+    # まどほむ(圆×焰的 CP)、レミリア・スカーレット 输给 おぜう。中文这边同样:
+    # 阿尔托莉雅·潘德拉贡 输给「骑士王」(那是称号)、魂魄妖梦 输给「妖梦」。
+    # 更糟的是取最短会跨语言串味:フランドール・スカーレット 的日文桶里躺着中文的「芙兰」,
+    # 两个字,于是它赢了。实测 1,761 个多候选角色里,两种取法有 677 个不一致。
+    # 标签自己带消歧后缀时,把候选名末尾的括注也去掉:那是别名池抄标签抄来的
+    # (`amatsukaze_(kancolle)` 的首项是「天津风（舰队Collection）」),而括注该由
+    # 消歧那一步按需决定 —— 它只在真撞名时才加,而且加的是当前的作品译名。
+    # 标签自己不带后缀的不动:`son_goku` 的「孫悟空(ドラゴンボール)」要靠它区分。
+    trim = _DISAMBIG.search(tag) is not None
     out: dict[str, str] = {"en": character_en(tag)}
     for lang in ("ja", "ko", "zh_hans", "zh_hant"):
-        rep = shortest(buckets.get(lang, []))
+        rep = primary(buckets.get(lang, []))
+        if rep and trim:
+            rep = _TRAILING_BRACKET.sub("", rep).strip() or rep
         if rep:
             out[lang] = rep
+    # 中文桶是空的,但日文桶里躺着一个纯汉字的候选 —— 那多半就是中文名,分桶时按
+    # 「有汉字无假名」判不出语言才落到了 ja。取最短的旧规则碰巧总能捞到它(汉字名比
+    # 假名名短),换成取首项就捞不到了,eevee 的「伊布」、belle 的「铃」都是这么丢的。
+    # 显式捞一次:fill_cjk 只看已选中的那个 ja 值,看不见桶里其余的候选。
+    if not out.get("zh_hans") and not out.get("zh_hant"):
+        seed = next((n for n in _candidates(buckets.get("ja", [])) if is_han_name(n)), None)
+        if seed:
+            out["zh_hans"] = seed
     return out
 
 
