@@ -6,7 +6,7 @@ from typing import Any
 
 import opencc
 
-from _hanzi import repair_to_simplified, repair_to_traditional
+from _hanzi import repair_to_simplified, repair_to_traditional, strip_japanese_glyphs
 from _paths import TRANSLATIONS_DIR
 
 LANGS = ("en", "ja", "ko", "zh_hans", "zh_hant")
@@ -29,6 +29,10 @@ def is_han_name(s: str | None) -> bool:
 
 
 def fill_cjk(chosen: dict[str, str]) -> dict[str, str]:
+    # 先把 OpenCC 给不出正确中文形的字形换掉(见 _hanzi.JP_GAPS)。这里是**派生**路径,
+    # 走的是 jp2t/t2s 而不是 repair_to_simplified,所以那张表原先够不到:日文名里的
+    # 篠 一路转成生僻的「筿」,55 个名字这么来的,而人工写的是「筱」。
+    chosen = {lang: strip_japanese_glyphs(value) if value else value for lang, value in chosen.items()}
     ja, hans, hant = chosen.get("ja"), chosen.get("zh_hans"), chosen.get("zh_hant")
     if is_han_name(hant):
         base = hant
