@@ -72,7 +72,7 @@ TARGETS = {
     # 「这个标签根本没有中文名」—— ≥300 投稿的标签里有 6,321 个是这样,多数不是
     # 漏翻,而是从来没进过任何一轮。写进 zh_supplement 是因为它们是*翻译*出来的,
     # 不是从别名池里*挑*出来的,两种来源的可信度不同,也该分开回滚。
-    "supplement": (TRANSLATIONS_DIR / "zh_supplement.json", None, (0, 3, 4, 5), ("fix_cp[0-9].json", "fix_gm[0-9].json", "fix_ch[0-9].json")),
+    "supplement": (TRANSLATIONS_DIR / "zh_supplement.json", None, (0, 3, 4, 5), ("fix_cp[0-9].json", "fix_gm[0-9].json", "fix_ch[0-9].json", "fix_lg[0-9].json")),
 }
 
 
